@@ -52,11 +52,17 @@ CatalogMeta *CatalogMeta::DeserializeFrom(char *buf) {
 }
 
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 uint32_t CatalogMeta::GetSerializedSize() const {
-  ASSERT(false, "Not Implemented yet");
-  return 0;
+  //ASSERT(false, "Not Implemented yet");
+  //magic_num + table_count + index_count
+  uint32_t size = sizeof(uint32_t) * 3; // MAGIC_NUM, table_meta_pages_.size(), index_meta_pages_.size()
+  // table_meta_pages_ (table_id_t + page_id_t)
+  size += table_meta_pages_.size() * (sizeof(table_id_t) + sizeof(page_id_t));
+  // index_meta_pages_ (index_id_t + page_id_t)
+  size += index_meta_pages_.size() * (sizeof(index_id_t) + sizeof(page_id_t));
+  return size;
 }
 
 CatalogMeta::CatalogMeta() {}
@@ -67,6 +73,7 @@ CatalogMeta::CatalogMeta() {}
 CatalogManager::CatalogManager(BufferPoolManager *buffer_pool_manager, LockManager *lock_manager,
                                LogManager *log_manager, bool init)
     : buffer_pool_manager_(buffer_pool_manager), lock_manager_(lock_manager), log_manager_(log_manager) {
+      
 //    ASSERT(false, "Not Implemented yet");
 }
 
