@@ -13,8 +13,8 @@ bool BitmapPage<PageSize>::AllocatePage(uint32_t &page_offset) {
 //    确保起始搜索点有效
 uint32_t current_scan_start = next_free_page_;
 if (current_scan_start >= GetMaxSupportedSize()) {
-    LOG(INFO) << "AllocatePage_Optimized: next_free_page_ (" << next_free_page_ 
-              << ") was out of bounds. Resetting scan start to 0.";
+    // LOG(INFO) << "AllocatePage_Optimized: next_free_page_ (" << next_free_page_ 
+    //           << ") was out of bounds. Resetting scan start to 0.";
     current_scan_start = 0;
 }
 
@@ -38,8 +38,8 @@ for (uint32_t i = 0; i < GetMaxSupportedSize(); ++i) {
         page_allocated_++;
         page_offset = candidate_offset; // 设置输出参数
 
-        LOG(INFO) << "AllocatePage_Optimized: Successfully allocated page " << page_offset
-                  << ". Total allocated: " << page_allocated_;
+        // LOG(INFO) << "AllocatePage_Optimized: Successfully allocated page " << page_offset
+        //           << ". Total allocated: " << page_allocated_;
 
         // 3. 更新 next_free_page_ 指向下一个 实际 的空闲页
         //    从刚分配的页的下一个位置开始搜索
@@ -57,7 +57,7 @@ for (uint32_t i = 0; i < GetMaxSupportedSize(); ++i) {
         if (!found_next_hint) { // 如果没有找到下一个空闲页 (可能所有页都满了)
             next_free_page_ = GetMaxSupportedSize(); // 指向末尾之后，表示没有已知空闲页或全满
         }
-        LOG(INFO) << "AllocatePage_Optimized: Updated next_free_page_ hint to " << next_free_page_;
+        // LOG(INFO) << "AllocatePage_Optimized: Updated next_free_page_ hint to " << next_free_page_;
         
         return true; // 分配成功
     }
@@ -109,8 +109,8 @@ if (page_allocated_ > 0) {
     LOG(ERROR) << "DeAllocatePage_Optimized: page_allocated_ was 0, but page " << page_offset 
                << " was marked as allocated in bitmap and is now deallocated. Metadata inconsistency.";
 }
-LOG(INFO) << "DeAllocatePage_Optimized: Deallocated page " << page_offset
-          << ". Total allocated now: " << page_allocated_;
+// LOG(INFO) << "DeAllocatePage_Optimized: Deallocated page " << page_offset
+          // << ". Total allocated now: " << page_allocated_;
 
 // 5. 更新 next_free_page_ 提示
 //    如果释放的页的偏移量小于当前的 next_free_page_，

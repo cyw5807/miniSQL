@@ -67,8 +67,8 @@ page_id_t DiskManager::AllocatePage() {
         // GetExtentUsedPage(i) 是指该extent内的bitmap管理的page有多少被用了
         // BITMAP_SIZE 是一个bitmap能管理的总数据页数
         if (meta_page_->extent_used_page_[i] < DiskManager::BITMAP_SIZE) { 
-            LOG(INFO) << "DiskManager::AllocatePage: Found space in existing extent " << i
-                      << " (used: " << meta_page_->extent_used_page_[i] << "/" << DiskManager::BITMAP_SIZE << ").";
+            // LOG(INFO) << "DiskManager::AllocatePage: Found space in existing extent " << i
+            //           << " (used: " << meta_page_->extent_used_page_[i] << "/" << DiskManager::BITMAP_SIZE << ").";
 
             //  创建一个新的 BitmapPage 对象 (在栈上创建以避免 new/delete)
             BitmapPage<PAGE_SIZE> bitmap_page_obj; // 对象在栈上
@@ -96,8 +96,8 @@ page_id_t DiskManager::AllocatePage() {
                  // 理论上不应发生，如果发生了，可能需要更复杂的恢复或错误处理
                  continue; // 尝试下一个 extent 
             }
-            LOG(INFO) << "DiskManager::AllocatePage: Allocated offset " << page_offset_in_bitmap 
-                      << " within bitmap of extent " << i;
+            // LOG(INFO) << "DiskManager::AllocatePage: Allocated offset " << page_offset_in_bitmap 
+            //           << " within bitmap of extent " << i;
 
             // 更新元数据
             meta_page_->num_allocated_pages_++;
@@ -108,19 +108,19 @@ page_id_t DiskManager::AllocatePage() {
             
             // 更新并写回 DiskFileMetaPage (meta_data_)
             WritePhysicalPage(0, meta_data_); // 物理页0是元数据页
-            LOG(INFO) << "DiskManager::AllocatePage: Updated meta_page on disk. num_allocated_pages: " 
-                      << meta_page_->num_allocated_pages_ << ", extent " << i << " used: " << meta_page_->extent_used_page_[i];
+            // LOG(INFO) << "DiskManager::AllocatePage: Updated meta_page on disk. num_allocated_pages: " 
+            //           << meta_page_->num_allocated_pages_ << ", extent " << i << " used: " << meta_page_->extent_used_page_[i];
 
 
             // 返回分配的页面 ID (逻辑页号)
             page_id_t logical_page_id = i * DiskManager::BITMAP_SIZE + page_offset_in_bitmap;
-            LOG(INFO) << "DiskManager::AllocatePage: Successfully allocated logical page_id: " << logical_page_id;
+            //LOG(INFO) << "DiskManager::AllocatePage: Successfully allocated logical page_id: " << logical_page_id;
             return logical_page_id;
         }
     }
 
-    LOG(INFO) << "DiskManager::AllocatePage: No space in existing extents. Attempting to create a new extent. "
-              << "Current num_extents: " << meta_page_->num_extents_;
+    //LOG(INFO) << "DiskManager::AllocatePage: No space in existing extents. Attempting to create a new extent. "
+              //<< "Current num_extents: " << meta_page_->num_extents_;
 
     //  如果没有找到空闲页面，创建新的扩展
 
@@ -138,15 +138,15 @@ page_id_t DiskManager::AllocatePage() {
     
         return INVALID_PAGE_ID;
     }
-    LOG(INFO) << "DiskManager::AllocatePage: Allocated offset " << new_page_offset_in_bitmap 
-              << " in new bitmap for new extent.";
+    // LOG(INFO) << "DiskManager::AllocatePage: Allocated offset " << new_page_offset_in_bitmap 
+    //           << " in new bitmap for new extent.";
 
     uint32_t new_extent_index = meta_page_->num_extents_; // 新的extent的索引
     page_id_t new_physical_bitmap_page_id = 1 + new_extent_index * (1 + DiskManager::BITMAP_SIZE); 
     // 将新的 bitmap_page 写回磁盘
     WritePhysicalPage(new_physical_bitmap_page_id, reinterpret_cast<const char*>(new_bitmap_buffer));
-    LOG(INFO) << "DiskManager::AllocatePage: Wrote new bitmap for extent " << new_extent_index 
-              << " to physical page " << new_physical_bitmap_page_id;
+    // LOG(INFO) << "DiskManager::AllocatePage: Wrote new bitmap for extent " << new_extent_index 
+    //           << " to physical page " << new_physical_bitmap_page_id;
 
     // 更新元数据
     meta_page_->num_allocated_pages_++;
@@ -155,15 +155,15 @@ page_id_t DiskManager::AllocatePage() {
     
     // 更新并写回 DiskFileMetaPage (meta_data_)
     WritePhysicalPage(0, meta_data_);
-    LOG(INFO) << "DiskManager::AllocatePage: Updated meta_page on disk for new extent. "
-              << "num_allocated_pages: " << meta_page_->num_allocated_pages_
-              << ", num_extents: " << meta_page_->num_extents_
-              << ", extent " << new_extent_index << " used: " << meta_page_->extent_used_page_[new_extent_index];
+    // LOG(INFO) << "DiskManager::AllocatePage: Updated meta_page on disk for new extent. "
+    //           << "num_allocated_pages: " << meta_page_->num_allocated_pages_
+    //           << ", num_extents: " << meta_page_->num_extents_
+    //           << ", extent " << new_extent_index << " used: " << meta_page_->extent_used_page_[new_extent_index];
 
     //  返回新分配的页面 ID (逻辑页号)
     page_id_t logical_page_id = new_extent_index * DiskManager::BITMAP_SIZE + new_page_offset_in_bitmap;
-    LOG(INFO) << "DiskManager::AllocatePage: Successfully allocated logical page_id from new extent: " << logical_page_id;
-    ASSERT(false, "Not implemented yet.");
+    //LOG(INFO) << "DiskManager::AllocatePage: Successfully allocated logical page_id from new extent: " << logical_page_id;
+    
     return logical_page_id;
   
 }
@@ -216,9 +216,9 @@ void DiskManager::DeAllocatePage(page_id_t logical_page_id) {
 
     // if res:
     if (res) {
-        LOG(INFO) << "DiskManager::DeAllocatePage: Successfully deallocated page " << page_offset_in_bitmap
-                  << " within bitmap of extent " << extent_id 
-                  << " (logical_page_id: " << logical_page_id << ").";
+        // LOG(INFO) << "DiskManager::DeAllocatePage: Successfully deallocated page " << page_offset_in_bitmap
+        //           << " within bitmap of extent " << extent_id 
+        //           << " (logical_page_id: " << logical_page_id << ").";
         //  更新元数据
         if (meta_page_->num_allocated_pages_ > 0) { // 防止下溢
             meta_page_->num_allocated_pages_--;
@@ -236,8 +236,8 @@ void DiskManager::DeAllocatePage(page_id_t logical_page_id) {
         
         // 更新并写回 DiskFileMetaPage (meta_data_) 到物理页0
         WritePhysicalPage(0, meta_data_); 
-        LOG(INFO) << "DiskManager::DeAllocatePage: Updated meta_page on disk. num_allocated_pages: " 
-                  << meta_page_->num_allocated_pages_ << ", extent " << extent_id << " used: " << meta_page_->extent_used_page_[extent_id];
+        // LOG(INFO) << "DiskManager::DeAllocatePage: Updated meta_page on disk. num_allocated_pages: " 
+        //           << meta_page_->num_allocated_pages_ << ", extent " << extent_id << " used: " << meta_page_->extent_used_page_[extent_id];
 
     } else {
         // 如果释放失败，记录错误日志
@@ -286,24 +286,24 @@ bool DiskManager::IsPageFree(page_id_t logical_page_id) {
 
     // 检查扩展 ID 是否超出范围
     if (extent_id >= meta_page_ptr->num_extents_) {
-        LOG(INFO) << "DiskManager::IsPageFree: logical_page_id " << logical_page_id 
-                  << " belongs to extent " << extent_id << " which does not exist (num_extents: " 
-                  << meta_page_ptr->num_extents_ << "). Considered free.";
+        // LOG(INFO) << "DiskManager::IsPageFree: logical_page_id " << logical_page_id 
+        //           << " belongs to extent " << extent_id << " which does not exist (num_extents: " 
+        //           << meta_page_ptr->num_extents_ << "). Considered free.";
         delete bitmap_page_ptr; // 清理已分配的内存
-        return true; // 图片第13行
+        return true; 
     }
 
     //读取 bitmap_page
   
     ReadPhysicalPage(physical_bitmap_page_id, bitmap_buffer);
-    LOG(INFO) << "DiskManager::IsPageFree: Read bitmap for extent " << extent_id 
-              << " from physical page " << physical_bitmap_page_id;
+    // LOG(INFO) << "DiskManager::IsPageFree: Read bitmap for extent " << extent_id 
+    //           << " from physical page " << physical_bitmap_page_id;
 
     //检查页面是否空闲
     bool is_free = bitmap_page_ptr->IsPageFree(page_offset_in_bitmap);
-    LOG(INFO) << "DiskManager::IsPageFree: logical_page_id " << logical_page_id 
-              << " (offset " << page_offset_in_bitmap << " in bitmap for extent " << extent_id 
-              << ") is_free result: " << is_free;
+    // LOG(INFO) << "DiskManager::IsPageFree: logical_page_id " << logical_page_id 
+    //           << " (offset " << page_offset_in_bitmap << " in bitmap for extent " << extent_id 
+    //           << ") is_free result: " << is_free;
 
     //  释放 bitmap_page 对象
     delete bitmap_page_ptr;
