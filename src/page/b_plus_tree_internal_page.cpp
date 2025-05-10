@@ -19,6 +19,12 @@
  * max page size
  */
 void InternalPage::Init(page_id_t page_id, page_id_t parent_id, int key_size, int max_size) {
+  SetPageType(IndexPageType::INTERNAL_PAGE); // This should be defined in BPlusTreePage or a common header
+  SetKeySize(key_size);
+  SetMaxSize(max_size); // max_size is likely the number of (key,pointer) PAIRS this page can hold
+  SetParentPageId(parent_id);
+  SetPageId(page_id);
+  SetSize(1);
 }
 /*
  * Helper method to get/set the key associated with input "index"(a.k.a
@@ -65,7 +71,23 @@ void InternalPage::PairCopy(void *dest, void *src, int pair_num) {
  * 用了二分查找
  */
 page_id_t InternalPage::Lookup(const GenericKey *key, const KeyManager &KM) {
-  return INVALID_PAGE_ID;
+  if (KM.CompareKeys(key, KeyAt(0)) < 0) {
+      return ValueAt(0);
+  }
+
+  int left = 0; // Start searching from KeyAt(1)
+  int right = GetSize() - 2; // Last valid index for a key to compare
+
+  while(left < right) {
+    int mid_key_idx = (left + right + 1) / 2;
+    if (KM.CompareKeys(key, KeyAt(mid_key_idx)) < 0) { // key < KeyAt(mid_key_idx)
+      right = mid_key_idx - 1;
+    } else { // key >= KeyAt(mid_key_idx)
+      left = mid_key_idx;
+    }
+    page_id_t result_page_id = ValueAt(left + 1); // Default if key is >= all keys
+    return result_page_id;
+  }
 }
 
 /*****************************************************************************
@@ -97,6 +119,10 @@ int InternalPage::InsertNodeAfter(const page_id_t &old_value, GenericKey *new_ke
  * buffer_pool_manager 是干嘛的？传给CopyNFrom()用于Fetch数据页
  */
 void InternalPage::MoveHalfTo(InternalPage *recipient, BufferPoolManager *buffer_pool_manager) {
+  int size = GetSize();
+  int half_size = size / 2;
+  recipient->CopyNFrom(pairs_off + half_size * pair_size, size - half_size, buffer_pool_manager);
+  SetSize(half_size);
 }
 
 /* Copy entries into me, starting from {items} and copy {size} entries.
@@ -105,6 +131,8 @@ void InternalPage::MoveHalfTo(InternalPage *recipient, BufferPoolManager *buffer
  *
  */
 void InternalPage::CopyNFrom(void *src, int size, BufferPoolManager *buffer_pool_manager) {
+  PairCopy(this, src, size);
+  SetSize(size);
 }
 
 /*****************************************************************************
