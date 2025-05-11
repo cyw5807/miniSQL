@@ -40,10 +40,23 @@ uint32_t IndexMetadata::SerializeTo(char *buf) const {
 }
 
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 uint32_t IndexMetadata::GetSerializedSize() const {
-  return 0;
+  uint32_t size = 0;
+  // magic num
+  size += sizeof(uint32_t);
+  // index id
+  size += sizeof(index_id_t); // 通常是 4 字节
+  // index name length + index name string
+  size += sizeof(uint32_t) + index_name_.length();
+  // table id
+  size += sizeof(table_id_t); // 通常是 4 字节
+  // key count
+  size += sizeof(uint32_t);
+  // key mapping in table (each col_index is uint32_t)
+  size += key_map_.size() * sizeof(uint32_t);
+  return size;
 }
 
 uint32_t IndexMetadata::DeserializeFrom(char *buf, IndexMetadata *&index_meta) {
