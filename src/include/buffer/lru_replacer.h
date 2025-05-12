@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
+
 #include "buffer/replacer.h"
 #include "common/config.h"
 
@@ -36,7 +37,11 @@ class LRUReplacer : public Replacer {
   size_t Size() override;
 
 private:
-  // add your own private member variables here
+  std::list<frame_id_t> lru_list_;
+  std::unordered_set<frame_id_t> lru_set_tracker_;;
+  std::mutex latch_; 
+  size_t capacity_; 
+ 
 };
 
 #endif  // MINISQL_LRU_REPLACER_H
