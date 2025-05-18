@@ -5,21 +5,21 @@
  * Page type enum class is defined in b_plus_tree_page.h
  */
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 bool BPlusTreePage::IsLeafPage() const {
   return page_type_ == IndexPageType::LEAF_PAGE;
 }
 
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 bool BPlusTreePage::IsRootPage() const {
   return parent_page_id_ == INVALID_PAGE_ID;
 }
 
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 void BPlusTreePage::SetPageType(IndexPageType page_type) {
   page_type_ = page_type;
@@ -53,14 +53,14 @@ void BPlusTreePage::IncreaseSize(int amount) {
  * Helper methods to get/set max size (capacity) of the page
  */
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 int BPlusTreePage::GetMaxSize() const {
   return max_size_;
 }
 
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 void BPlusTreePage::SetMaxSize(int size) {
   max_size_ = size;
@@ -71,7 +71,7 @@ void BPlusTreePage::SetMaxSize(int size) {
  * Generally, min page size == max page size / 2
  */
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 int BPlusTreePage::GetMinSize() const {
   if (IsRootPage()) {
@@ -87,7 +87,7 @@ int BPlusTreePage::GetMinSize() const {
  * Helper methods to get/set parent page id
  */
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 page_id_t BPlusTreePage::GetParentPageId() const {
   return parent_page_id_;

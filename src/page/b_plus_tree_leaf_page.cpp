@@ -13,7 +13,7 @@
  *****************************************************************************/
 
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 /**
  * Init method after creating a new leaf page
@@ -47,7 +47,7 @@ void LeafPage::SetNextPageId(page_id_t next_page_id) {
 }
 
 /**
- * TODO: Student Implement
+ * TODO: Student Implement - Done
  */
 /**
  * Helper method to find the first index i so that pairs_[i].first >= key
@@ -151,7 +151,7 @@ void LeafPage::CopyNFrom(void *src, int size) {
 bool LeafPage::Lookup(const GenericKey *key, RowId &value, const KeyManager &KM) {
   int index = KeyIndex(key, KM);
   if(KM.CompareKeys(KeyAt(index), key) == 0){
-    SetValueAt(index, value);
+    value = ValueAt(index);
     return true;
   }
   return false;
