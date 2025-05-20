@@ -7,68 +7,72 @@
  */
 template <size_t PageSize>
 bool BitmapPage<PageSize>::AllocatePage(uint32_t &page_offset) {
-   // 1. 容量检查: 是否所有页都已分配完毕
+   if (page_allocated_ >= GetMaxSupportedSize() && GetMaxSupportedSize() > 0) { // 只有在有可管理页时才判断是否已满
+        LOG(WARNING) << "BitmapPage::AllocatePage (ImageLogic): All pages are already allocated. "
+                     << "page_allocated_ (" << page_allocated_
+                     << ") >= GetMaxSupportedSize() (" << GetMaxSupportedSize() << ").";
+        return false;
+    }
+    if (GetMaxSupportedSize() == 0) { // 如果根本没有可管理的页
+        LOG(WARNING) << "BitmapPage::AllocatePage (ImageLogic): GetMaxSupportedSize() is 0. Cannot allocate.";
+        return false;
+    }
 
-// 2. 查找空闲页: 从 next_free_page_ 开始进行环形搜索
-//    确保起始搜索点有效
-uint32_t current_scan_start = next_free_page_;
-if (current_scan_start >= GetMaxSupportedSize()) {
-    // LOG(INFO) << "AllocatePage_Optimized: next_free_page_ (" << next_free_page_ 
-    //           << ") was out of bounds. Resetting scan start to 0.";
-    current_scan_start = 0;
-}
 
-for (uint32_t i = 0; i < GetMaxSupportedSize(); ++i) {
-    uint32_t candidate_offset = (current_scan_start + i) % GetMaxSupportedSize();
 
-    if (IsPageFree(candidate_offset)) {
-        // 找到了空闲页
-        uint32_t byte_to_modify = candidate_offset / 8;
-        uint8_t bit_to_modify = candidate_offset % 8;
+    // 需要确保 next_free_page_ 本身是一个有效的索引，IsPageFree 会处理越界
+    if (IsPageFree(next_free_page_)) {
+        // LOG(INFO) << "BitmapPage::AllocatePage (ImageLogic): Hint next_free_page_ (" << next_free_page_ 
+        //           << ") is free. Allocating it.";
 
-        if (byte_to_modify >= MAX_CHARS) { // 额外的安全检查
-             LOG(ERROR) << "AllocatePage_Optimized: Calculated byte_index " << byte_to_modify
-                   << " is out of bounds (MAX_CHARS: " << MAX_CHARS
-                   << ") for candidate_offset " << candidate_offset << ". This indicates an issue with GetMaxSupportedSize or IsPageFree.";
-            return false; // 或者尝试下一个，但这通常表明逻辑错误
+       
+        uint32_t byte_to_modify = next_free_page_ / 8;
+        uint8_t bit_to_modify = next_free_page_ % 8;
+
+        // 假设 IsPageFree(next_free_page_) 返回 true 时，next_free_page_ < GetMaxSupportedSize()，
+        // 因此 byte_to_modify < MAX_CHARS 是成立的。
+        if (byte_to_modify >= MAX_CHARS) { // 防御性检查
+             LOG(ERROR) << "BitmapPage::AllocatePage (ImageLogic): Calculated byte_index " << byte_to_modify
+                       << " is out of bounds (MAX_CHARS: " << MAX_CHARS
+                       << ") for next_free_page_ " << next_free_page_ << ". Inconsistency detected.";
+            return false;
         }
+        bytes[byte_to_modify] |= (1U << bit_to_modify);
 
-        bytes[byte_to_modify] |= (1U << bit_to_modify); // 标记为已分配
+        
+        page_offset = next_free_page_;
+
 
         page_allocated_++;
-        page_offset = candidate_offset; // 设置输出参数
-
-        // LOG(INFO) << "AllocatePage_Optimized: Successfully allocated page " << page_offset
+        // LOG(INFO) << "BitmapPage::AllocatePage (ImageLogic): Allocated page " << page_offset
         //           << ". Total allocated: " << page_allocated_;
 
-        // 3. 更新 next_free_page_ 指向下一个 实际 的空闲页
-        //    从刚分配的页的下一个位置开始搜索
-        bool found_next_hint = false;
-        if (page_allocated_ < GetMaxSupportedSize()) { // 只有在还有空闲页时才搜索
-            for (uint32_t j = 0; j < GetMaxSupportedSize(); ++j) {
-                uint32_t next_hint_candidate = (page_offset + 1 + j) % GetMaxSupportedSize();
-                if (IsPageFree(next_hint_candidate)) {
-                    next_free_page_ = next_hint_candidate;
-                    found_next_hint = true;
-                    break;
-                }
-            }
-        }
-        if (!found_next_hint) { // 如果没有找到下一个空闲页 (可能所有页都满了)
-            next_free_page_ = GetMaxSupportedSize(); // 指向末尾之后，表示没有已知空闲页或全满
-        }
-        // LOG(INFO) << "AllocatePage_Optimized: Updated next_free_page_ hint to " << next_free_page_;
+       
+        uint32_t scanned_free_index = 0; // 对应图片第14行: free_index = 0
         
-        return true; // 分配成功
+        if (GetMaxSupportedSize() > 0) { // 仅当有可管理的页时才扫描
+            while (!IsPageFree(scanned_free_index) && (scanned_free_index < GetMaxSupportedSize() - 1) ) {
+                scanned_free_index++; 
+            }
+            // 循环结束后, scanned_free_index 要么指向第一个空闲页 (如果该页索引 <= GetMaxSupportedSize()-2),
+            // 要么是 GetMaxSupportedSize() - 1 (如果0到GetMaxSupportedSize()-2都被占用了)。
+        } else {
+            // 如果 GetMaxSupportedSize() 是 0, scanned_free_index 保持 0。
+            // next_free_page_ 将被设为0，这在这种情况下可能是个哨兵值或需要特殊处理。
+        }
+
+        next_free_page_ = scanned_free_index; 
+       // LOG(INFO) << "BitmapPage::AllocatePage (ImageLogic): Updated next_free_page_ hint to " << next_free_page_;
+
+        return true;
+    } else {
+        LOG(WARNING) << "BitmapPage::AllocatePage (ImageLogic): Initial hint next_free_page_ (" << next_free_page_
+                     << ") is not free or invalid. Allocation failed based on this hint.";
+        return false;
     }
 }
 
-// 如果循环结束仍未找到空闲页 (理论上，如果 page_allocated_ < GetMaxSupportedSize()，则不应发生)
-LOG(ERROR) << "AllocatePage_Optimized: No free page found even though page_allocated_ (" 
-           << page_allocated_ << ") < GetMaxSupportedSize() (" << GetMaxSupportedSize() 
-           << "). This might indicate a corrupted bitmap or metadata.";
-return false;
-}
+
 
 /**
  * TODO: Student Implement

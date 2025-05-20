@@ -304,19 +304,19 @@ bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
     // LOG(INFO) << "BufferPoolManager::UnpinPage: Attempting to unpin page_id " << page_id 
     //           << " with is_dirty = " << (is_dirty ? "true" : "false");
 
-    // 对应图片第2行: 检查页面表中是否存在请求的页面
+
     auto page_table_iter = page_table_.find(page_id);
     if (page_table_iter == page_table_.end()) {
         LOG(WARNING) << "BufferPoolManager::UnpinPage: Page " << page_id 
                      << " not found in buffer pool. Cannot unpin.";
-        return false; // 对应图片第3行
+        return false;
     }
 
-    // 对应图片第5行: 获取对应的帧 ID
+
     frame_id_t frame_id_to_unpin = page_table_iter->second;
     Page* page_to_unpin_ptr = &pages_[frame_id_to_unpin];
 
-    // 对应图片第8行: 减少页面的固定计数
+
     // 首先检查 pin_count 是否已经是0，不应该unpin一个已经是0的页
     if (page_to_unpin_ptr->GetPinCount() <= 0) {
         LOG(WARNING) << "BufferPoolManager::UnpinPage: Page " << page_id << " (frame " << frame_id_to_unpin
@@ -342,7 +342,7 @@ bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
     }
 
 
-    // ：如果 pin_count 变为0，通知替换器**
+    //如果 pin_count 变为0，通知替换器**
     if (page_to_unpin_ptr->GetPinCount() == 0) {
         replacer_->Unpin(frame_id_to_unpin);
         LOG(INFO) << "BufferPoolManager::UnpinPage: Page " << page_id << " (frame " << frame_id_to_unpin

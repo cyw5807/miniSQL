@@ -9,6 +9,13 @@
 template <size_t PageSize>
 class BitmapPage {
  public:
+  BitmapPage() : page_allocated_(0), next_free_page_(0) {
+
+    if (MAX_CHARS > 0) { // 只有当 bytes 数组实际有大小时才清零
+        std::memset(bytes, 0, MAX_CHARS); // 将所有位图位清零，表示所有页都空闲
+    }
+  }
+  ~BitmapPage() = default;
   /**
    * @return The number of pages that the bitmap page can record, i.e. the capacity of an extent.
    */
