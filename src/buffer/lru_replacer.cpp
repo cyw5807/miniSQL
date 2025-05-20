@@ -1,7 +1,7 @@
 #include "buffer/lru_replacer.h"
 #include "glog/logging.h"
 
-LRUReplacer::LRUReplacer(size_t num_pages){}
+LRUReplacer::LRUReplacer(size_t num_pages):capacity_(num_pages){}
 
 LRUReplacer::~LRUReplacer() = default;
 
@@ -85,12 +85,6 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
 
     } else {
         
-        LOG(INFO) << "LRUReplacer::Unpin: Frame " << frame_id 
-                  << " is ALREADY in replacer. Moving to MRU position (standard LRU behavior).";
-        // 为了实现标准的LRU行为（如果已存在则移到MRU）：
-        lru_list_.remove(frame_id); // O(N) - 从list中移除
-        lru_list_.push_front(frame_id); // O(1) - 加到头部
-        // lru_set_tracker_ 中元素已存在，无需操作。
     }
 }
 
