@@ -28,6 +28,7 @@ void LeafPage::Init(page_id_t page_id, page_id_t parent_id, int key_size, int ma
   SetMaxSize(max_size);
   SetSize(0);
   SetKeySize(key_size);
+  SetNextPageId(INVALID_PAGE_ID);
   SetLSN(INVALID_LSN);
   SetNextPageId(INVALID_PAGE_ID);
 }
@@ -56,8 +57,8 @@ void LeafPage::SetNextPageId(page_id_t next_page_id) {
  */
 int LeafPage::KeyIndex(const GenericKey *key, const KeyManager &KM) {
   int size = GetSize();
-  if(KM.CompareKeys(key, KeyAt(0)) < 0) return -1;
-  int left = 0, right = size - 2;
+  if(KM.CompareKeys(key, KeyAt(1)) < 0) return 0;
+  int left = 1, right = size - 1;
   while(left < right){
     int mid = (left + right + 1) / 2;
     if(KM.CompareKeys(key, KeyAt(mid)) < 0) right = mid - 1;
@@ -87,7 +88,7 @@ void LeafPage::SetValueAt(int index, RowId value) {
 }
 
 void *LeafPage::PairPtrAt(int index) {
-  return KeyAt(index);
+  return reinterpret_cast<void *>(pairs_off + index * pair_size);
 }
 
 void LeafPage::PairCopy(void *dest, void *src, int pair_num) {
@@ -116,7 +117,7 @@ int LeafPage::Insert(GenericKey *key, const RowId &value, const KeyManager &KM) 
   SetKeyAt(index, key);
   SetValueAt(index, value);
   IncreaseSize(1);
-  return size + 1;
+  return GetSize();
 }
 
 /*****************************************************************************
