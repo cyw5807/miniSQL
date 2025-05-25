@@ -54,8 +54,9 @@ int InternalPage::ValueIndex(const page_id_t &value) const {
   return -1;
 }
 
+// UNDO
 void *InternalPage::PairPtrAt(int index) {
-  return KeyAt(index);
+  return reinterpret_cast<void*>(pairs_off + index * pair_size);
 }
 
 void InternalPage::PairCopy(void *dest, void *src, int pair_num) {
@@ -71,22 +72,22 @@ void InternalPage::PairCopy(void *dest, void *src, int pair_num) {
  * 用了二分查找
  */
 page_id_t InternalPage::Lookup(const GenericKey *key, const KeyManager &KM) {
-  if (KM.CompareKeys(key, KeyAt(0)) < 0) {
+  if (KM.CompareKeys(key, KeyAt(1)) < 0) {
       return ValueAt(0);
   }
 
-  int left = 0, right = GetSize() - 2;
+  int left = 1, right = GetSize() - 1;
 
   while(left < right) {
-    int mid_key_idx = (left + right + 1) / 2;
-    if (KM.CompareKeys(key, KeyAt(mid_key_idx)) < 0) { // key < KeyAt(mid_key_idx)
-      right = mid_key_idx - 1;
-    } else { // key >= KeyAt(mid_key_idx)
-      left = mid_key_idx;
+    int mid = (left + right + 1) / 2;
+    if (KM.CompareKeys(key, KeyAt(mid)) < 0) { // key < KeyAt(mid)
+      right = mid - 1;
+    } else { // key >= KeyAt(mid)
+      left = mid;
     }
-    page_id_t result_page_id = ValueAt(left + 1); // Default if key is >= all keys
-    return result_page_id;
   }
+  page_id_t result_page_id = ValueAt(left); // Default if key is >= all keys
+    return result_page_id;
 }
 
 /*****************************************************************************
@@ -99,8 +100,8 @@ page_id_t InternalPage::Lookup(const GenericKey *key, const KeyManager &KM) {
  * NOTE: This method is only called within InsertIntoParent()(b_plus_tree.cpp)
  */
 void InternalPage::PopulateNewRoot(const page_id_t &old_value, GenericKey *new_key, const page_id_t &new_value) {
-  SetKeyAt(0, new_key);
   SetValueAt(0, old_value);
+  SetKeyAt(1, new_key);
   SetValueAt(1, new_value);
 }
 
@@ -116,14 +117,14 @@ int InternalPage::InsertNodeAfter(const page_id_t &old_value, GenericKey *new_ke
     if(ValueAt(i - 1) == old_value){
       SetValueAt(i, new_value);
       SetKeyAt(i, new_key);
-      return size + 1;
+      return GetSize();
     }
     SetValueAt(i, ValueAt(i - 1));
     SetKeyAt(i, KeyAt(i - 1));
   }
   SetValueAt(0, new_value);
   SetKeyAt(0, new_key);
-  return size + 1;
+  return GetSize();
 }
 
 /*****************************************************************************
@@ -137,7 +138,7 @@ void InternalPage::MoveHalfTo(InternalPage *recipient, BufferPoolManager *buffer
   int size = GetSize();
   int half_size = size / 2;
   recipient->CopyNFrom(pairs_off + half_size * pair_size, size - half_size, buffer_pool_manager);
-  SetSize(half_size);
+  IncreaseSize(-half_size);
 }
 
 /* Copy entries into me, starting from {items} and copy {size} entries.
@@ -251,7 +252,7 @@ void InternalPage::MoveLastToFrontOf(InternalPage *recipient, GenericKey *middle
   page_id_t last_pointer_from_this = ValueAt(size - 1);
   recipient->CopyFirstFrom(last_pointer_from_this, buffer_pool_manager);
   recipient->SetKeyAt(0, middle_key);
-  if(size > 1) middle_key = KeyAt(size - 2);
+  if(size > 1) middle_key = KeyAt(size - 1);
   IncreaseSize(-1);
 }
 
