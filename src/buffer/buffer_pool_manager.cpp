@@ -218,8 +218,8 @@ Page *BufferPoolManager::NewPage(page_id_t &page_id) {
 
     //  (page_table[page_id] = frame_id) -> page_id 是 new_on_disk_page_id
     page_table_[new_on_disk_page_id] = frame_id_to_use;
-    LOG(INFO) << "BufferPoolManager::NewPage (Optimized): Added mapping for new page " << new_on_disk_page_id 
-              << " to frame " << frame_id_to_use << ".";
+    // LOG(INFO) << "BufferPoolManager::NewPage (Optimized): Added mapping for new page " << new_on_disk_page_id 
+    //           << " to frame " << frame_id_to_use << ".";
     
  
     replacer_->Pin(frame_id_to_use); // 固定新页，不让替换器立即换出
@@ -345,8 +345,8 @@ bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
     //如果 pin_count 变为0，通知替换器**
     if (page_to_unpin_ptr->GetPinCount() == 0) {
         replacer_->Unpin(frame_id_to_unpin);
-        LOG(INFO) << "BufferPoolManager::UnpinPage: Page " << page_id << " (frame " << frame_id_to_unpin
-                  << ") pin_count is now 0. Frame unpinned in replacer.";
+        // LOG(INFO) << "BufferPoolManager::UnpinPage: Page " << page_id << " (frame " << frame_id_to_unpin
+        //           << ") pin_count is now 0. Frame unpinned in replacer.";
     }
 
     return true;

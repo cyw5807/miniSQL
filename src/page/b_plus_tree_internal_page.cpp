@@ -24,7 +24,7 @@ void InternalPage::Init(page_id_t page_id, page_id_t parent_id, int key_size, in
   SetMaxSize(max_size); // max_size is likely the number of (key,pointer) PAIRS this page can hold
   SetParentPageId(parent_id);
   SetPageId(page_id);
-  SetSize(1);
+  SetSize(0);
 }
 /*
  * Helper method to get/set the key associated with input "index"(a.k.a
@@ -72,11 +72,12 @@ void InternalPage::PairCopy(void *dest, void *src, int pair_num) {
  * 用了二分查找
  */
 page_id_t InternalPage::Lookup(const GenericKey *key, const KeyManager &KM) {
-  if (KM.CompareKeys(key, KeyAt(1)) < 0) {
+  int size = GetSize();
+  if (size <= 1 || KM.CompareKeys(key, KeyAt(1)) < 0) {
       return ValueAt(0);
   }
 
-  int left = 1, right = GetSize() - 1;
+  int left = 1, right = size - 1;
 
   while(left < right) {
     int mid = (left + right + 1) / 2;
@@ -86,8 +87,7 @@ page_id_t InternalPage::Lookup(const GenericKey *key, const KeyManager &KM) {
       left = mid;
     }
   }
-  page_id_t result_page_id = ValueAt(left); // Default if key is >= all keys
-    return result_page_id;
+  return ValueAt(left);
 }
 
 /*****************************************************************************
@@ -122,8 +122,6 @@ int InternalPage::InsertNodeAfter(const page_id_t &old_value, GenericKey *new_ke
     SetValueAt(i, ValueAt(i - 1));
     SetKeyAt(i, KeyAt(i - 1));
   }
-  SetValueAt(0, new_value);
-  SetKeyAt(0, new_key);
   return GetSize();
 }
 
@@ -138,7 +136,7 @@ void InternalPage::MoveHalfTo(InternalPage *recipient, BufferPoolManager *buffer
   int size = GetSize();
   int half_size = size / 2;
   recipient->CopyNFrom(pairs_off + half_size * pair_size, size - half_size, buffer_pool_manager);
-  IncreaseSize(-half_size);
+  IncreaseSize( - (size - half_size));
 }
 
 /* Copy entries into me, starting from {items} and copy {size} entries.
@@ -148,6 +146,18 @@ void InternalPage::MoveHalfTo(InternalPage *recipient, BufferPoolManager *buffer
  */
 void InternalPage::CopyNFrom(void *src, int size, BufferPoolManager *buffer_pool_manager) {
   PairCopy(PairPtrAt(GetSize()), src, size);
+  for (int i = 0; i < size; ++i) {
+    page_id_t child_page_id = ValueAt(GetSize() + i);
+    Page *child_page = buffer_pool_manager->FetchPage(child_page_id);
+    if (child_page == nullptr) {
+      throw std::runtime_error("Failed to fetch child page during CopyNFrom");
+    }
+
+    BPlusTreePage *bpt_child_page = reinterpret_cast<BPlusTreePage *>(child_page);
+    bpt_child_page->SetParentPageId(GetPageId());
+
+    buffer_pool_manager->UnpinPage(child_page_id, true);
+  }
   IncreaseSize(size);
 }
 
@@ -194,7 +204,7 @@ void InternalPage::MoveAllTo(InternalPage *recipient, GenericKey *middle_key, Bu
   for (int i = 1; i < GetSize(); ++i) {
     recipient->CopyLastFrom(KeyAt(i), ValueAt(i), buffer_pool_manager);
   }
-  SetSize(0);
+  // SetSize(0);
 }
 
 /*****************************************************************************
@@ -233,7 +243,7 @@ void InternalPage::CopyLastFrom(GenericKey *key, const page_id_t value, BufferPo
 
   Page *child_page = buffer_pool_manager->FetchPage(value);
   if (child_page != nullptr) {
-    BPlusTreePage *bpt_child_page = reinterpret_cast<BPlusTreePage *>(child_page->GetData());
+    BPlusTreePage *bpt_child_page = reinterpret_cast<BPlusTreePage *>(child_page);
     bpt_child_page->SetParentPageId(GetPageId());
     buffer_pool_manager->UnpinPage(value, true);
   }
@@ -271,7 +281,7 @@ void InternalPage::CopyFirstFrom(const page_id_t value, BufferPoolManager *buffe
 
     Page *child_page = buffer_pool_manager->FetchPage(value);
     if (child_page != nullptr) {
-        BPlusTreePage *bpt_child_page = reinterpret_cast<BPlusTreePage *>(child_page->GetData());
+        BPlusTreePage *bpt_child_page = reinterpret_cast<BPlusTreePage *>(child_page);
         bpt_child_page->SetParentPageId(GetPageId());
         buffer_pool_manager->UnpinPage(value, true); // Unpin and mark as dirty
     }
