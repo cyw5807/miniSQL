@@ -122,8 +122,8 @@ if (page_allocated_ > 0) {
 //    那么这个刚释放的页就成了新的（或更优的）next_free_page_ 候选。
 if (page_offset < next_free_page_ || next_free_page_ == GetMaxSupportedSize()) {
     next_free_page_ = page_offset;
-    LOG(INFO) << "DeAllocatePage_Optimized: Updated next_free_page_ hint to " << next_free_page_
-              << " due to deallocation of page " << page_offset << ".";
+    // LOG(INFO) << "DeAllocatePage_Optimized: Updated next_free_page_ hint to " << next_free_page_
+    //           << " due to deallocation of page " << page_offset << ".";
 }
 
 return true;

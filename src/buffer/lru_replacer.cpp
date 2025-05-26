@@ -54,8 +54,8 @@ void LRUReplacer::Pin(frame_id_t frame_id) {
         // LOG(INFO) << "LRUReplacer::Pin: Frame " << frame_id << " pinned and removed from replacer. "
         //           << "Replacer size now: " << lru_list_.size();
     } else {
-        LOG(INFO) << "LRUReplacer::Pin: Frame " << frame_id 
-                  << " was not in replacer. No action taken.";
+        // LOG(INFO) << "LRUReplacer::Pin: Frame " << frame_id 
+        //           << " was not in replacer. No action taken.";
     }
 }
 

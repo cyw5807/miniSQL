@@ -19,7 +19,7 @@ IndexIterator::~IndexIterator() {
  * TODO: Student Implement - DONE
  */
 std::pair<GenericKey *, RowId> IndexIterator::operator*() {
-  if (page == nullptr || item_index < 0) {
+  if (page == nullptr || item_index < 0 || item_index >= page->GetSize()) {
     throw std::out_of_range("Iterator dereference out of range");
   }
   GenericKey *key = page->KeyAt(item_index);
@@ -42,6 +42,7 @@ IndexIterator &IndexIterator::operator++() {
     } else {
       // 到达 end()
       page = nullptr;
+      item_index = -1;
     }
   }
   return *this;
