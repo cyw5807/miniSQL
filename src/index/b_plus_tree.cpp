@@ -476,9 +476,9 @@ bool BPlusTree::Coalesce(LeafPage *&neighbor_node, LeafPage *&node, InternalPage
   bool should_delete_parent = false;
   if (parent->GetSize() < parent->GetMinSize()) {
     if(parent->IsRootPage()){
-      return AdjustRoot(parent);
+      should_delete_parent =  AdjustRoot(parent);
     }
-    should_delete_parent = CoalesceOrRedistribute(parent, transaction);
+    else should_delete_parent = CoalesceOrRedistribute(parent, transaction);
   } else {
     buffer_pool_manager_->UnpinPage(parent->GetPageId(), true);
   }
@@ -529,9 +529,9 @@ bool BPlusTree::Coalesce(InternalPage *&neighbor_node, InternalPage *&node, Inte
   bool should_delete_parent = false;
   if (parent->GetSize() < parent->GetMinSize()) {
     if  (parent->IsRootPage()) { 
-      return AdjustRoot(parent);
+      should_delete_parent =  AdjustRoot(parent);
     }
-    should_delete_parent = CoalesceOrRedistribute(parent, transaction);
+    else should_delete_parent = CoalesceOrRedistribute(parent, transaction);
   } else {
     buffer_pool_manager_->UnpinPage(parent->GetPageId(), true);
   }
@@ -600,43 +600,43 @@ void BPlusTree::Redistribute(LeafPage *neighbor_node, LeafPage *node, int index)
   buffer_pool_manager_->UnpinPage(neighbor_node->GetPageId(), true);
   buffer_pool_manager_->UnpinPage(parent_node->GetPageId(), true);
 
-  // GenericKey *update_key = node->KeyAt(0);
-  // page_id_t child_page_id = node->GetPageId();
-  // page_id_t parent_page_id = node->GetParentPageId();
-  // while(parent_page_id != INVALID_PAGE_ID){
-  //   // Page *child_page = buffer_pool_manager_->FetchPage(child_page_id);
-  //   // InternalPage *child = reinterpret_cast<InternalPage*>(child_page);
-  //   Page *parent_page = buffer_pool_manager_->FetchPage(parent_page_id);
-  //   InternalPage *parent = reinterpret_cast<InternalPage*>(parent_page);
-  //   int index = parent->ValueIndex(child_page_id);
-  //   if(index != 0){
-  //     if(index > 0) parent->SetKeyAt(index, update_key);
-  //     buffer_pool_manager_->UnpinPage(parent_page_id, true);
-  //     break;
-  //   }
-  //   buffer_pool_manager_->UnpinPage(parent_page_id, false);
-  //   child_page_id = parent_page_id;
-  //   parent_page_id = parent->GetParentPageId();
-  // }
+  GenericKey *update_key = node->KeyAt(0);
+  page_id_t child_page_id = node->GetPageId();
+  page_id_t parent_page_id = node->GetParentPageId();
+  while(parent_page_id != INVALID_PAGE_ID){
+    // Page *child_page = buffer_pool_manager_->FetchPage(child_page_id);
+    // InternalPage *child = reinterpret_cast<InternalPage*>(child_page);
+    Page *parent_page = buffer_pool_manager_->FetchPage(parent_page_id);
+    InternalPage *parent = reinterpret_cast<InternalPage*>(parent_page);
+    int index = parent->ValueIndex(child_page_id);
+    if(index != 0){
+      if(index > 0) parent->SetKeyAt(index, update_key);
+      buffer_pool_manager_->UnpinPage(parent_page_id, true);
+      break;
+    }
+    buffer_pool_manager_->UnpinPage(parent_page_id, false);
+    child_page_id = parent_page_id;
+    parent_page_id = parent->GetParentPageId();
+  }
 
-  // update_key = neighbor_node->KeyAt(0);
-  // child_page_id = neighbor_node->GetPageId();
-  // parent_page_id = neighbor_node->GetParentPageId();
-  // while(parent_page_id != INVALID_PAGE_ID){
-  //   // Page *child_page = buffer_pool_manager_->FetchPage(child_page_id);
-  //   // InternalPage *child = reinterpret_cast<InternalPage*>(child_page);
-  //   Page *parent_page = buffer_pool_manager_->FetchPage(parent_page_id);
-  //   InternalPage *parent = reinterpret_cast<InternalPage*>(parent_page);
-  //   int index = parent->ValueIndex(child_page_id);
-  //   if(index != 0){
-  //     if(index > 0) parent->SetKeyAt(index, update_key);
-  //     buffer_pool_manager_->UnpinPage(parent_page_id, true);
-  //     break;
-  //   }
-  //   buffer_pool_manager_->UnpinPage(parent_page_id, false);
-  //   child_page_id = parent_page_id;
-  //   parent_page_id = parent->GetParentPageId();
-  // }
+  update_key = neighbor_node->KeyAt(0);
+  child_page_id = neighbor_node->GetPageId();
+  parent_page_id = neighbor_node->GetParentPageId();
+  while(parent_page_id != INVALID_PAGE_ID){
+    // Page *child_page = buffer_pool_manager_->FetchPage(child_page_id);
+    // InternalPage *child = reinterpret_cast<InternalPage*>(child_page);
+    Page *parent_page = buffer_pool_manager_->FetchPage(parent_page_id);
+    InternalPage *parent = reinterpret_cast<InternalPage*>(parent_page);
+    int index = parent->ValueIndex(child_page_id);
+    if(index != 0){
+      if(index > 0) parent->SetKeyAt(index, update_key);
+      buffer_pool_manager_->UnpinPage(parent_page_id, true);
+      break;
+    }
+    buffer_pool_manager_->UnpinPage(parent_page_id, false);
+    child_page_id = parent_page_id;
+    parent_page_id = parent->GetParentPageId();
+  }
 }
 void BPlusTree::Redistribute(InternalPage *neighbor_node, InternalPage *node, int index) {
   if (index == 0) {
@@ -715,7 +715,8 @@ void BPlusTree::Redistribute(InternalPage *neighbor_node, InternalPage *node, in
  */
 bool BPlusTree::AdjustRoot(BPlusTreePage *old_root_node) {
   // 如果根节点大小仍符合最小要求，无需调整
-  if (old_root_node->GetSize() > old_root_node->GetMinSize()) {
+  if (old_root_node->GetSize() >= old_root_node->GetMinSize()) {
+    buffer_pool_manager_->UnpinPage(old_root_node->GetPageId(), false);
     return false;
   }
 
@@ -747,12 +748,13 @@ bool BPlusTree::AdjustRoot(BPlusTreePage *old_root_node) {
     if (leaf_root->GetSize() == 0) {
       buffer_pool_manager_->UnpinPage(leaf_root->GetPageId(), true);
       buffer_pool_manager_->DeletePage(leaf_root->GetPageId());
+      root_page_id_ = INVALID_PAGE_ID;
       UpdateRootPageId();
       return true; // 整棵树已清空
     }
   }
-
-  return false; // 不需要删除根节点
+  // buffer_pool_manager_->UnpinPage(old_root_node->GetPageId(), false);
+  // return false; // 不需要删除根节点
 }
 
 /*****************************************************************************
@@ -881,8 +883,7 @@ Page *BPlusTree::FindLeafPage(const GenericKey *key, page_id_t page_id, bool lef
   buffer_pool_manager_->UnpinPage(current_page_id, false);
   current_page_id = next_page_id;
 
-  Page *result = FindLeafPage(key, current_page_id, leftMost);
-  return result;
+  return FindLeafPage(key, current_page_id, leftMost);
   
   // page_id_t current_page_id = page_id;
   // BPlusTreePage *current_page = nullptr;
