@@ -16,6 +16,12 @@
 #include "glog/logging.h"
 #include "planner/planner.h"
 #include "utils/utils.h"
+extern "C" {
+int yyparse(void);
+//FILE *yyin;
+#include "parser/minisql_lex.h"
+#include "parser/parser.h"
+}
 
 ExecuteEngine::ExecuteEngine() {
   char path[] = "./databases";
@@ -1023,7 +1029,119 @@ dberr_t ExecuteEngine::ExecuteExecfile(pSyntaxNode ast, ExecuteContext *context)
 #ifdef ENABLE_EXECUTE_DEBUG
   LOG(INFO) << "ExecuteExecfile" << std::endl;
 #endif
-  return DB_SUCCESS;
+  // 从 AST 中获取文件名
+  // AST 结构: kNodeExecFile -> child_ (kNodeString 或 kNodeIdentifier: filename)
+  if (ast == nullptr || ast->type_ != kNodeExecFile || ast->child_ == nullptr ||
+      (ast->child_->type_ != kNodeString && ast->child_->type_ != kNodeIdentifier) ||
+      ast->child_->val_ == nullptr) {
+    LOG(ERROR) << "Syntax error: Invalid AST structure for EXECFILE statement (missing filename).";
+    ExecuteInformation(DB_FAILED);
+    return DB_FAILED;
+  }
+  std::string file_name(ast->child_->val_);
+  if (file_name.empty()) {
+    LOG(ERROR) << "Syntax error: Filename for EXECFILE cannot be empty.";
+    ExecuteInformation(DB_FAILED);
+    return DB_FAILED;
+  }
+
+  // 2. 打开 SQL 脚本文件
+  std::ifstream sql_script_file(file_name);
+  if (!sql_script_file.is_open()) {
+    LOG(ERROR) << "Cannot open file '" << file_name << "' for EXECFILE.";
+    // 你可能需要一个特定的错误码并在 ExecuteInformation 中处理
+    std::cout << "Error: Cannot open SQL script file '" << file_name << "'." << std::endl;
+    return DB_FAILED; // 使用通用错误码
+  }
+
+  std::cout << "Executing SQL script file [" << file_name << "] ..." << std::endl;
+  std::string current_statement_buffer;
+  char ch;
+  dberr_t overall_status = DB_SUCCESS;
+  int line_count_for_error_reporting = 0; // 粗略的行号跟踪
+
+  // 3. 逐条读取、解析和执行SQL语句
+  while (sql_script_file.get(ch)) {
+    current_statement_buffer += ch;
+    if (ch == '\n') {
+        line_count_for_error_reporting++;
+    }
+
+    if (ch == ';') { // 假设分号是语句结束符
+      // Trim(current_statement_buffer); // 移除首尾空白
+      current_statement_buffer.erase(0, current_statement_buffer.find_first_not_of(" \t\n\r\f\v"));
+      current_statement_buffer.erase(current_statement_buffer.find_last_not_of(" \t\n\r\f\v") + 1);
+
+
+      if (current_statement_buffer.empty() || current_statement_buffer == ";") {
+        current_statement_buffer.clear();
+        continue; // 跳过空语句
+      }
+
+      LOG(INFO) << "Parsing from file [" << file_name << "]: " << current_statement_buffer;
+
+      MinisqlParserInit(); // 初始化解析器状态 (如果需要每次都重置)
+
+      YY_BUFFER_STATE flex_buffer = yy_scan_string(current_statement_buffer.c_str());
+      if (flex_buffer == nullptr) {
+          LOG(ERROR) << "Failed to create Flex buffer for SQL statement: " << current_statement_buffer;
+          overall_status = DB_FAILED;
+          MinisqlParserFinish(); // 清理
+          break; 
+      }
+      
+      int parse_result = yyparse(); // 调用 Bison 解析器
+      yy_delete_buffer(flex_buffer); // 删除为当前语句创建的 Flex 缓冲区
+
+      pSyntaxNode single_statement_ast = MinisqlGetParserRootNode();
+
+      if (parse_result != 0 || single_statement_ast == nullptr || MinisqlParserGetError() != 0) {
+        LOG(ERROR) << "Syntax error in file '" << file_name << "' (around line " << line_count_for_error_reporting 
+                   << ") for statement: " << current_statement_buffer;
+        if (MinisqlParserGetError() != 0 && MinisqlParserGetErrorMessage() != nullptr) {
+            std::cout << "Error (approx. line " << line_count_for_error_reporting << "): " << MinisqlParserGetErrorMessage() << std::endl;
+        } else {
+            std::cout << "Error in file [" << file_name << "] (around line " << line_count_for_error_reporting << "): Syntax error in statement." << std::endl;
+        }
+        overall_status = DB_FAILED;
+        DestroySyntaxTree();      // 清理可能产生的AST
+        MinisqlParserFinish();    // 清理状态
+        break; // 中止整个脚本的执行
+      }
+
+      // 递归调用 ExecuteEngine::Execute() 来执行解析出的单条语句
+      // Execute() 函数会自己处理 Planner 和 Executor 的创建和调用
+      // 它也会自己根据 current_db_ 创建 ExecuteContext
+      dberr_t stmt_exec_result = Execute(single_statement_ast);
+      
+      DestroySyntaxTree(); // **非常重要**: 清理为这条语句解析生成的AST
+      MinisqlParserFinish();   // 清理状态 (如果需要每次都重置)
+
+      if (stmt_exec_result == DB_QUIT) {
+        overall_status = DB_QUIT;
+        std::cout << "QUIT command encountered in script. Halting script execution." << std::endl;
+        break; // 脚本中的QUIT会中止脚本执行
+      }
+      if (stmt_exec_result != DB_SUCCESS) {
+        LOG(WARNING) << "Error executing statement from file '" << file_name << "' (around line " << line_count_for_error_reporting
+                     << "): " << current_statement_buffer;
+        // Execute() 内部应该已经通过 ExecuteInformation 打印了具体的错误信息
+        overall_status = stmt_exec_result; // 保留错误状态
+        break; // 中止整个脚本的执行
+      }
+      current_statement_buffer.clear(); // 为下一条语句清空缓冲区
+    }
+  } // end while reading file
+
+  sql_script_file.close();
+
+  // 4. 收尾
+  if (overall_status == DB_SUCCESS) {
+      std::cout << "SQL script file [" << file_name << "] executed successfully." << std::endl;
+  } else if (overall_status != DB_QUIT) { // 如果不是因为QUIT而停止
+      std::cout << "Execution of SQL script file [" << file_name << "] encountered errors." << std::endl;
+  }
+  return DB_QUIT;
 }
 
 /**

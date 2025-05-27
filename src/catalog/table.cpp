@@ -58,6 +58,7 @@ uint32_t TableMetadata::DeserializeFrom(char *buf, TableMetadata *&table_meta) {
   // table schema
   TableSchema *schema = nullptr;
   buf += TableSchema::DeserializeFrom(buf, schema);
+  schema->GetSerializedSize();
   // allocate space for table metadata
   table_meta = new TableMetadata(table_id, table_name, root_page_id, schema);
   return buf - p;
