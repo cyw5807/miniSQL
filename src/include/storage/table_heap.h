@@ -8,6 +8,8 @@
 #include "recovery/log_manager.h"
 #include "storage/table_iterator.h"
 
+#include "glog/logging.h"
+
 class TableHeap {
   friend class TableIterator;
 
@@ -113,7 +115,22 @@ class TableHeap {
         schema_(schema),
         log_manager_(log_manager),
         lock_manager_(lock_manager) {
-    ASSERT(false, "Not implemented yet.");
+    // page_id_t first_page_id_temp;
+    page_id_t first_page_id_temp;
+    auto first_page_obj = reinterpret_cast<TablePage *>(buffer_pool_manager_->NewPage(first_page_id_temp));
+    if (first_page_obj == nullptr) {
+    LOG(ERROR)<<"Failed to allocate the first page for TableHeap.";
+    }
+  this->first_page_id_ = first_page_id_temp;
+
+  // Initialize the first page as a TablePage.
+  first_page_obj->WLatch();
+  first_page_obj->Init(this->first_page_id_, INVALID_PAGE_ID, log_manager_, txn);
+  first_page_obj->WUnlatch();
+
+  // Unpin the page, marking it as dirty.
+  buffer_pool_manager_->UnpinPage(this->first_page_id_, true);
+
   };
 
   explicit TableHeap(BufferPoolManager *buffer_pool_manager, page_id_t first_page_id, Schema *schema,
