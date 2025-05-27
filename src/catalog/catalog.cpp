@@ -364,38 +364,50 @@ dberr_t CatalogManager::CreateIndex(const std::string &table_name, const string 
   // 从 TableInfo 获取 table_id
   table_id_t table_id = local_table_info->GetTableId();
 
-  // 从索引键名创建 key_map (列索引向量)
-  std::vector<uint32_t> key_map;
+  // --- 调试建议 1 开始 ---
+  LOG(INFO) << "[CatalogManager::CreateIndex] For index '" << index_name << "' on table '" << table_name << "':";
+  std::string index_keys_str = "  Index Keys (names): ";
+  for (const auto& key_name : index_keys) {
+    index_keys_str += key_name + " ";
+  }
+  LOG(INFO) << index_keys_str;
+
+  std::vector<uint32_t> key_map; // 这个 key_map 将被用于创建 IndexMetadata
   key_map.reserve(index_keys.size());
   TableSchema *table_schema = local_table_info->GetSchema();
   if (table_schema == nullptr) {
-      LOG(ERROR) << "Table " << table_name << " has no schema.";
-      return DB_FAILED; 
+      LOG(ERROR) << "[CatalogManager::CreateIndex] Table " << table_name << " has no schema.";
+      return DB_FAILED;
   }
   for (const std::string &key_column_name : index_keys) {
     uint32_t column_index;
-    if (table_schema->GetColumnIndex(key_column_name, column_index) != DB_SUCCESS) {
-      return DB_COLUMN_NAME_NOT_EXIST;
+    dberr_t col_idx_res = table_schema->GetColumnIndex(key_column_name, column_index); // 获取列索引
+    if (col_idx_res != DB_SUCCESS) {
+      LOG(ERROR) << "[CatalogManager::CreateIndex] Column '" << key_column_name << "' not found in table '" << table_name << "'.";
+      return DB_COLUMN_NAME_NOT_EXIST; // 或者 col_idx_res
     }
     key_map.push_back(column_index);
   }
   if (key_map.empty()) {
-      LOG(WARNING) << "Attempted to create index '" << index_name << "' on table '" << table_name << "' with no key columns.";
+      LOG(WARNING) << "[CatalogManager::CreateIndex] Attempted to create index '" << index_name << "' on table '" << table_name << "' with no key columns.";
       return DB_FAILED; // 或 DB_INDEX_KEYS_EMPTY
   }
 
-  // 生成新的索引 ID
+  std::string key_map_str = "  Generated key_map (column indices in table schema): ";
+  for (uint32_t col_idx : key_map) {
+    key_map_str += std::to_string(col_idx) + " ";
+  }
+  LOG(INFO) << key_map_str;
+  // --- 调试建议 1 结束 (key_map 生成部分的日志) ---
+
   index_id_t new_index_id = next_index_id_.fetch_add(1);
 
-  // 为索引元数据分配新页面
   page_id_t index_meta_page_id;
   Page *index_meta_disk_page = buffer_pool_manager_->NewPage(index_meta_page_id);
   if (index_meta_disk_page == nullptr) {
-    // next_index_id_.fetch_sub(1); // 可选的回滚ID (并发时复杂)
     return DB_FAILED;
   }
 
-  // 创建索引元数据并序列化
   IndexMetadata *index_meta = IndexMetadata::Create(new_index_id, index_name, table_id, key_map);
   if (index_meta == nullptr) {
     buffer_pool_manager_->UnpinPage(index_meta_page_id, false);
@@ -404,34 +416,53 @@ dberr_t CatalogManager::CreateIndex(const std::string &table_name, const string 
   }
   index_meta->SerializeTo(index_meta_disk_page->GetData());
 
-  // 创建并初始化 IndexInfo
   IndexInfo *new_index_info_obj = nullptr;
-  bool init_took_ownership_of_meta = false;
+  bool init_succeeded_and_took_ownership = false;
   try {
     new_index_info_obj = IndexInfo::Create();
     if (!new_index_info_obj) throw std::bad_alloc();
+    
+    new_index_info_obj->Init(index_meta, local_table_info, buffer_pool_manager_); // index_type 参数被移除，因为 IndexInfo::Init 不接受
+    init_succeeded_and_took_ownership = true; // 假设 Init 成功则获取所有权
 
-    // 调用 IndexInfo::Init。根据 indexes.h，它不接受 index_type。
-    // index_meta 的所有权在 Init 内部第一步转移给 new_index_info_obj->meta_data_
-    new_index_info_obj->Init(index_meta, local_table_info, buffer_pool_manager_);
-    init_took_ownership_of_meta = true; // 如果 Init 没有抛异常，则认为所有权已转移
-
-  } catch (const std::bad_alloc &e) { // IndexInfo::Create() 失败
-    delete index_meta; // index_meta 未被 IndexInfo 接管
-    buffer_pool_manager_->UnpinPage(index_meta_page_id, true); // 页面已被序列化，是脏的
-    buffer_pool_manager_->DeletePage(index_meta_page_id);
-    return DB_FAILED;
-  } catch (...) { // IndexInfo::Init() 内部抛出异常
-    if (new_index_info_obj) {
-        // 如果 Init() 在设置其 meta_data_ 成员后抛出异常，
-        // new_index_info_obj 的析构函数将处理 index_meta。
-        // 如果在设置之前抛出（不太可能根据 indexes.h 的 Init 实现），则 index_meta 会泄漏。
-        // 为了简单起见，假设 Init() 如果失败，new_index_info_obj 的析构可以安全调用。
-        delete new_index_info_obj; 
-    } else if (!init_took_ownership_of_meta) { 
-        // new_index_info_obj 为 null，或者 Init 在接管所有权前失败
-        delete index_meta;
+    // --- 调试 2 ---
+    // 在 IndexInfo::Init 调用之后检查其结果
+    LOG(INFO) << "[CatalogManager::CreateIndex] After IndexInfo::Init for index '" << new_index_info_obj->GetIndexName() << "':";
+    IndexSchema* resulting_key_schema = new_index_info_obj->GetIndexKeySchema();
+    if (resulting_key_schema == nullptr) {
+        LOG(ERROR) << "  IndexInfo::Init resulted in a null key_schema_!";
+        // 如果 key_schema_ 为空，后续操作很可能会失败，这里应该处理这个错误
+        // 例如，清理已创建的资源并返回失败
+        // delete new_index_info_obj; // 它会删除 index_meta (如果 Init 中已赋值)
+        // buffer_pool_manager_->UnpinPage(index_meta_page_id, true);
+        // buffer_pool_manager_->DeletePage(index_meta_page_id);
+        // catalog_meta_->GetIndexMetaPages()->erase(new_index_id); // 如果已经添加了
+        // return DB_FAILED; // 或者更具体的错误码
+        // 为了不改变原函数的结构，这里只打日志，让后续的 ASSERT 或操作失败
+    } else {
+        LOG(INFO) << "  Resulting key_schema_ column count: " << resulting_key_schema->GetColumnCount();
+        LOG(INFO) << "  Original key_map size used for IndexMetadata: " << key_map.size();
+        if (resulting_key_schema->GetColumnCount() != key_map.size()) {
+            LOG(ERROR) << "  MISMATCH! key_schema_ column count (" << resulting_key_schema->GetColumnCount()
+                       << ") does not match original key_map size (" << key_map.size() << ").";
+        }
     }
+    if (new_index_info_obj->GetIndex() == nullptr && resulting_key_schema != nullptr) {
+        LOG(ERROR) << "  IndexInfo::Init resulted in a null underlying Index object, even though key_schema might be valid.";
+    }
+    // --- 调试 2 结束 ---
+
+  } catch (const std::bad_alloc &e) {
+    if (!init_succeeded_and_took_ownership) delete index_meta;
+    delete new_index_info_obj; 
+    buffer_pool_manager_->UnpinPage(index_meta_page_id, true);
+    buffer_pool_manager_->DeletePage(index_meta_page_id);
+    LOG(ERROR) << "[CatalogManager::CreateIndex] Memory allocation failed: " << e.what();
+    return DB_FAILED;
+  } catch (const std::exception &e) { // 捕获 Init 可能抛出的其他标准异常
+    LOG(ERROR) << "[CatalogManager::CreateIndex] Exception during IndexInfo::Init: " << e.what();
+    if (new_index_info_obj) { delete new_index_info_obj; } 
+    else if (!init_succeeded_and_took_ownership) { delete index_meta; }
     buffer_pool_manager_->UnpinPage(index_meta_page_id, true);
     buffer_pool_manager_->DeletePage(index_meta_page_id);
     return DB_FAILED;
