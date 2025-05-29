@@ -57,6 +57,7 @@ void BPlusTree::Destroy(page_id_t current_page_id) {
   // 如果销毁的是根节点，更新 root_page_id_
   if (current_page_id == root_page_id_) {
     root_page_id_ = INVALID_PAGE_ID;
+    UpdateRootPageId(0);
   }
 }
 
