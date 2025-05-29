@@ -48,6 +48,7 @@ TEST(BPlusTreeTests, BPlusTreeIndexSimpleTest) {
   const TableSchema table_schema(columns);
   auto *index_schema = Schema::ShallowCopySchema(&table_schema, index_key_map);
   auto *index = new BPlusTreeIndex(0, index_schema, 256, bpm_);
+  // std::cout << "Index test-1: " << std::endl;
   for (int i = 0; i < 10; i++) {
     std::vector<Field> fields{Field(TypeId::kTypeInt, i),
                               Field(TypeId::kTypeChar, const_cast<char *>("minisql"), 7, true)};
@@ -57,6 +58,7 @@ TEST(BPlusTreeTests, BPlusTreeIndexSimpleTest) {
   }
   // Test Scan
   std::vector<RowId> ret;
+  // std::cout << "Index test-2: " << std::endl;
   for (int i = 0; i < 10; i++) {
     std::vector<Field> fields{Field(TypeId::kTypeInt, i),
                               Field(TypeId::kTypeChar, const_cast<char *>("minisql"), 7, true)};
@@ -68,12 +70,14 @@ TEST(BPlusTreeTests, BPlusTreeIndexSimpleTest) {
   // Iterator Scan
   IndexIterator iter = index->GetBeginIterator();
   uint32_t i = 0;
+  // std::cout << "Index test-3: " << std::endl;
   for (; iter != index->GetEndIterator(); ++iter) {
     ASSERT_EQ(1000, (*iter).second.GetPageId());
     ASSERT_EQ(i, (*iter).second.GetSlotNum());
     i++;
   }
   ASSERT_EQ(10, i);
+  // std::cout << "Index test-4: " << std::endl;
   index->Destroy();
   delete index;
   delete bpm_;
