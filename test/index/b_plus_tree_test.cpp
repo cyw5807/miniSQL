@@ -198,7 +198,6 @@ TEST(BPlusTreeTests, CreateSampleTest) {
   std::cout << "B+ Tree Test-create" << std::endl << "----------------------------" << std::endl;
   vector<RowId> ans;
   for (int i = 0; i < n; i++) {
-    std::cout << "B+ Tree Test-create-"<< i << std::endl << "----------------------------" << std::endl;
     ASSERT_FALSE(tree.GetValue(keys[i], ans));
     ASSERT_TRUE(tree.Insert(keys[i], values[i]));
     ASSERT_TRUE(tree.GetValue(keys[i], ans));
@@ -265,5 +264,64 @@ TEST(BPlusTreeTests, GeneralSampleTest) {
     ASSERT_EQ(kv_map[keys[2 * i + 1]], ans[i]);
     tree.Remove(keys[2 * i + 1]);
     ASSERT_FALSE(tree.GetValue(keys[2 * i + 1], ans));
+  }
+}
+
+TEST(BPlusTreeTests, GeneralSampleTest2) {
+  // Init engine
+  DBStorageEngine engine(db_name);
+  std::vector<Column *> columns = {
+      new Column("int", TypeId::kTypeInt, 0, false, false),
+  };
+  Schema *table_schema = new Schema(columns);
+  KeyManager KP(table_schema, 17);
+  BPlusTree tree(0, engine.bpm_, KP);
+  TreeFileManagers mgr("tree_");
+  // Prepare data
+  const int n = 20000; // testing
+  vector<GenericKey *> keys;
+  vector<RowId> values;
+  map<GenericKey *, RowId> kv_map;
+  for (int i = 0; i < n; i++) {
+    GenericKey *key = KP.InitKey();
+    std::vector<Field> fields{Field(TypeId::kTypeInt, i)};
+    KP.SerializeFromKey(key, Row(fields), table_schema);
+    keys.push_back(key);
+    values.push_back(RowId(i));
+  }
+  // Shuffle data
+  ShuffleArray(keys);
+  ShuffleArray(values);
+  
+  // Map key value
+  for (int i = 0; i < n; i++) {
+    kv_map[keys[i]] = values[i];
+  }
+  // Insert data
+  std::cout << "B+ Tree Test-general2" << std::endl << "----------------------------" << std::endl;
+  vector<RowId> ans;
+  std::cout << "B+ Tree Test-1" << std::endl << "----------------------------" << std::endl;
+  for (int i = 0; i < n / 2; i++) {
+    ASSERT_FALSE(tree.GetValue(keys[2 * i], ans));
+    ASSERT_TRUE(tree.Insert(keys[2 * i], values[2 * i]));
+    ASSERT_FALSE(tree.Insert(keys[2 * i], values[2 * i]));
+    ASSERT_FALSE(tree.GetValue(keys[2 * i + 1], ans));
+    ASSERT_TRUE(tree.Insert(keys[2 * i + 1], values[2 * i + 1]));
+    ASSERT_FALSE(tree.Insert(keys[2 * i + 1], values[2 * i + 1]));
+    ASSERT_TRUE(tree.GetValue(keys[i], ans));
+    ASSERT_EQ(kv_map[keys[i]], ans[i]);
+    tree.Remove(keys[i]);
+    ASSERT_FALSE(tree.GetValue(keys[i], ans));
+  }
+  ASSERT_TRUE(tree.Check());
+  ans.clear();
+  std::cout << "B+ Tree Test-2" << std::endl << "----------------------------" << std::endl;
+  for (int i = 0; i < n / 2; i++) {
+    int offset = n / 2;
+    ASSERT_FALSE(tree.GetValue(keys[i], ans));
+    ASSERT_TRUE(tree.GetValue(keys[i + offset], ans));
+    ASSERT_EQ(kv_map[keys[i + offset]], ans[i]);
+    tree.Remove(keys[i + offset]);
+    ASSERT_FALSE(tree.GetValue(keys[i + offset], ans));
   }
 }
