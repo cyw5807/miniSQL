@@ -15,6 +15,7 @@ TEST(BPlusTreeTests, IndexIteratorTest) {
   KeyManager KP(table_schema, 16);
   BPlusTree tree(0, engine.bpm_, KP);
   // Generate insert record
+  // std::cout << "Test-insert " << std::endl;
   vector<GenericKey *> insert_key;
   for (int i = 1; i <= 50; i++) {
     GenericKey *key = KP.InitKey();
@@ -24,6 +25,7 @@ TEST(BPlusTreeTests, IndexIteratorTest) {
     tree.Insert(key, RowId(i * 100), nullptr);
   }
   // Generate delete record
+  // std::cout << "Test-delete " << std::endl;
   vector<GenericKey *> delete_key;
   for (int i = 2; i <= 50; i += 2) {
     GenericKey *key = KP.InitKey();
@@ -38,6 +40,7 @@ TEST(BPlusTreeTests, IndexIteratorTest) {
   for (auto key : delete_key) {
     ASSERT_FALSE(tree.GetValue(key, v));
   }
+  // std::cout << "Test-search " << std::endl;
   for (int i = 1; i <= 49; i += 2) {
     GenericKey *key = KP.InitKey();
     std::vector<Field> fields{Field(TypeId::kTypeInt, i)};
@@ -47,10 +50,12 @@ TEST(BPlusTreeTests, IndexIteratorTest) {
     ASSERT_EQ(i * 100, v[v.size() - 1].Get());
   }
   // Iterator
+  // std::cout << "Test-iterator " << std::endl;
   int i = 0;
   for (auto iter = tree.Begin(); iter != tree.End(); ++iter) {
     ASSERT_TRUE(KP.CompareKeys(not_delete_key[i++], (*iter).first) == 0);  // if equal, CompareKeys return 0
     EXPECT_EQ(RowId((2 * i - 1) * 100), (*iter).second);
   }
   ASSERT_EQ(25, i);
+  tree.Destroy();
 }

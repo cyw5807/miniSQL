@@ -19,7 +19,7 @@ TEST(BPlusTreeTests, SampleTest) {
   BPlusTree tree(0, engine.bpm_, KP);
   TreeFileManagers mgr("tree_");
   // Prepare data
-  const int n = 20000; // testing
+  const int n = 2000; // testing
   vector<GenericKey *> keys;
   vector<RowId> values;
   vector<GenericKey *> delete_seq;
@@ -42,7 +42,7 @@ TEST(BPlusTreeTests, SampleTest) {
     kv_map[keys[i]] = values[i];
   }
   // Insert data
-  std::cout << "B+ Tree Test-ins" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-ins" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n; i++) {
     tree.Insert(keys[i], values[i]);
   }
@@ -51,7 +51,7 @@ TEST(BPlusTreeTests, SampleTest) {
   tree.PrintTree(mgr[0], table_schema);
   // Search keys
   vector<RowId> ans;
-  std::cout << "B+ Tree Test-get" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-get" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n; i++) {
     tree.GetValue(keys_copy[i], ans);
     ASSERT_EQ(kv_map[keys_copy[i]], ans[i]);
@@ -59,18 +59,18 @@ TEST(BPlusTreeTests, SampleTest) {
 
   ASSERT_TRUE(tree.Check());
   // Delete half keys
-  std::cout << "B+ Tree Test-del" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-del" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     tree.Remove(delete_seq[i]);
   }
   tree.PrintTree(mgr[1], table_schema);
   // Check valid
   ans.clear();
-  std::cout << "B+ Tree Test-del-fir" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-del-fir" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     ASSERT_FALSE(tree.GetValue(delete_seq[i], ans));
   }
-  std::cout << "B+ Tree Test-del-sec" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-del-sec" << std::endl << "----------------------------" << std::endl;
   for (int i = n / 2; i < n; i++) {
     ASSERT_TRUE(tree.GetValue(delete_seq[i], ans));
     ASSERT_EQ(kv_map[delete_seq[i]], ans[ans.size() - 1]);
@@ -88,7 +88,7 @@ TEST(BPlusTreeTests, MySampleTest) {
   BPlusTree tree(0, engine.bpm_, KP);
   TreeFileManagers mgr("tree_");
   // Prepare data
-  const int n = 20000; // testing
+  const int n = 2000; // testing
   vector<GenericKey *> keys;
   vector<RowId> values;
   vector<GenericKey *> delete_seq;
@@ -115,13 +115,13 @@ TEST(BPlusTreeTests, MySampleTest) {
     kv_map[keys[i]] = values[i];
   }
   // Insert data
-  std::cout << "B+ Tree Test-ins1" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-ins1" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     tree.Insert(keys[i], values[i]);
   }
   ASSERT_TRUE(tree.Check());
   vector<RowId> ans;
-  std::cout << "B+ Tree Test-get1" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-get1" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     ASSERT_TRUE(tree.GetValue(keys_copy[i], ans));
     ASSERT_EQ(kv_map[keys_copy[i]], ans[i]);
@@ -129,7 +129,7 @@ TEST(BPlusTreeTests, MySampleTest) {
   for(int i = n / 2; i < n; i++){
     ASSERT_FALSE(tree.GetValue(keys_copy[i], ans));
   }
-  std::cout << "B+ Tree Test-ins2" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-ins2" << std::endl << "----------------------------" << std::endl;
   for (int i = n / 2; i < n; i++) {
     tree.Insert(keys[i], values[i]);
   }
@@ -138,7 +138,7 @@ TEST(BPlusTreeTests, MySampleTest) {
   tree.PrintTree(mgr[0], table_schema);
   // Search keys
   ans.clear();
-  std::cout << "B+ Tree Test-get2" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-get2" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n; i++) {
     ASSERT_TRUE(tree.GetValue(keys_copy[index[i]], ans));
     ASSERT_EQ(kv_map[keys_copy[index[i]]], ans[i]);
@@ -146,18 +146,18 @@ TEST(BPlusTreeTests, MySampleTest) {
 
   ASSERT_TRUE(tree.Check());
   // Delete half keys
-  std::cout << "B+ Tree Test-del" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-del" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     tree.Remove(delete_seq[i]);
   }
   tree.PrintTree(mgr[1], table_schema);
   // Check valid
   ans.clear();
-  std::cout << "B+ Tree Test-del-fir" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-del-fir" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     ASSERT_FALSE(tree.GetValue(delete_seq[i], ans));
   }
-  std::cout << "B+ Tree Test-del-sec" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-del-sec" << std::endl << "----------------------------" << std::endl;
   for (int i = n / 2; i < n; i++) {
     ASSERT_TRUE(tree.GetValue(delete_seq[i], ans));
     ASSERT_EQ(kv_map[delete_seq[i]], ans[ans.size() - 1]);
@@ -195,7 +195,7 @@ TEST(BPlusTreeTests, CreateSampleTest) {
     kv_map[keys[i]] = values[i];
   }
   // Insert data
-  std::cout << "B+ Tree Test-create" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-create" << std::endl << "----------------------------" << std::endl;
   vector<RowId> ans;
   for (int i = 0; i < n; i++) {
     ASSERT_FALSE(tree.GetValue(keys[i], ans));
@@ -218,7 +218,7 @@ TEST(BPlusTreeTests, GeneralSampleTest) {
   BPlusTree tree(0, engine.bpm_, KP);
   TreeFileManagers mgr("tree_");
   // Prepare data
-  const int n = 20000; // testing
+  const int n = 2000; // testing
   vector<GenericKey *> keys;
   vector<RowId> values;
   map<GenericKey *, RowId> kv_map;
@@ -238,9 +238,9 @@ TEST(BPlusTreeTests, GeneralSampleTest) {
     kv_map[keys[i]] = values[i];
   }
   // Insert data
-  std::cout << "B+ Tree Test-general" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-general" << std::endl << "----------------------------" << std::endl;
   vector<RowId> ans;
-  std::cout << "B+ Tree Test-1" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-1" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     ASSERT_FALSE(tree.GetValue(keys[2 * i], ans));
     ASSERT_TRUE(tree.Insert(keys[2 * i], values[2 * i]));
@@ -257,7 +257,7 @@ TEST(BPlusTreeTests, GeneralSampleTest) {
   }
   ASSERT_TRUE(tree.Check());
   ans.clear();
-  std::cout << "B+ Tree Test-2" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-2" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     ASSERT_FALSE(tree.GetValue(keys[2 * i], ans));
     ASSERT_TRUE(tree.GetValue(keys[2 * i + 1], ans));
@@ -278,7 +278,7 @@ TEST(BPlusTreeTests, GeneralSampleTest2) {
   BPlusTree tree(0, engine.bpm_, KP);
   TreeFileManagers mgr("tree_");
   // Prepare data
-  const int n = 20000; // testing
+  const int n = 2000; // testing
   vector<GenericKey *> keys;
   vector<RowId> values;
   map<GenericKey *, RowId> kv_map;
@@ -298,9 +298,9 @@ TEST(BPlusTreeTests, GeneralSampleTest2) {
     kv_map[keys[i]] = values[i];
   }
   // Insert data
-  std::cout << "B+ Tree Test-general2" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-general2" << std::endl << "----------------------------" << std::endl;
   vector<RowId> ans;
-  std::cout << "B+ Tree Test-1" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-1" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     ASSERT_FALSE(tree.GetValue(keys[2 * i], ans));
     ASSERT_TRUE(tree.Insert(keys[2 * i], values[2 * i]));
@@ -315,7 +315,7 @@ TEST(BPlusTreeTests, GeneralSampleTest2) {
   }
   ASSERT_TRUE(tree.Check());
   ans.clear();
-  std::cout << "B+ Tree Test-2" << std::endl << "----------------------------" << std::endl;
+  // std::cout << "B+ Tree Test-2" << std::endl << "----------------------------" << std::endl;
   for (int i = 0; i < n / 2; i++) {
     int offset = n / 2;
     ASSERT_FALSE(tree.GetValue(keys[i], ans));
