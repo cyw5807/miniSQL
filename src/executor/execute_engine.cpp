@@ -42,6 +42,14 @@ ExecuteEngine::ExecuteEngine() {
     dbs_[stdir->d_name] = new DBStorageEngine(stdir->d_name, false);
   }
    **/
+  struct dirent *stdir;
+  while((stdir = readdir(dir)) != nullptr) {
+    if( strcmp( stdir->d_name , "." ) == 0 ||
+        strcmp( stdir->d_name , "..") == 0 ||
+        stdir->d_name[0] == '.')
+      continue;
+    dbs_[stdir->d_name] = new DBStorageEngine(stdir->d_name, false);
+  }
   closedir(dir);
 }
 
@@ -414,7 +422,7 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
       }
 
       std::string type_name_str(col_type_node->val_);
-      std::transform(type_name_str.begin(), type_name_str.end(), type_name_str.begin(), ::toupper);
+      std::transform(type_name_str.begin(), type_name_str.end(), type_name_str.begin(), ::tolower);
 
       if (type_name_str == "int") {
         pci.type_id = TypeId::kTypeInt;
@@ -471,13 +479,13 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
           // 约束是 kNodeIdentifier，其 val_ 是 "UNIQUE" 或 "NOTNULL" (或 "NOT" 后跟 "NULL")
           if (constraint_ptr->type_ == kNodeIdentifier && constraint_ptr->val_ != nullptr) {
               std::string constraint_val(constraint_ptr->val_);
-              std::transform(constraint_val.begin(), constraint_val.end(), constraint_val.begin(), ::toupper);
+              std::transform(constraint_val.begin(), constraint_val.end(), constraint_val.begin(), ::tolower);
               if (constraint_val == "unique") {
                   pci.is_unique_from_col_def = true;
               } else if (constraint_val == "not" && constraint_ptr->next_ &&
                          constraint_ptr->next_->type_ == kNodeIdentifier && constraint_ptr->next_->val_) {
                   std::string next_val(constraint_ptr->next_->val_);
-                  std::transform(next_val.begin(), next_val.end(), next_val.begin(), ::toupper);
+                  std::transform(next_val.begin(), next_val.end(), next_val.begin(), ::tolower);
                   if (next_val == "null") {
                       pci.is_not_null_from_col_def = true;
                       constraint_ptr = constraint_ptr->next_;
@@ -902,7 +910,7 @@ dberr_t ExecuteEngine::ExecuteCreateIndex(pSyntaxNode ast, ExecuteContext *conte
     Row index_key_row(index_key_fields); // 创建索引键行
 
     // 将条目插入物理索引结构
-    if (!actual_index_structure->InsertEntry(index_key_row, original_row_id, txn)) {
+    if (actual_index_structure->InsertEntry(index_key_row, original_row_id, txn) != DB_SUCCESS) {
       LOG(ERROR) << "Failed to insert entry into index '" << index_name << "' for rowid (Page: " 
                  << original_row_id.GetPageId() << ", Slot: " << original_row_id.GetSlotNum()
                  << ") during initial population.";
@@ -1141,7 +1149,7 @@ dberr_t ExecuteEngine::ExecuteExecfile(pSyntaxNode ast, ExecuteContext *context)
   } else if (overall_status != DB_QUIT) { // 如果不是因为QUIT而停止
       std::cout << "Execution of SQL script file [" << file_name << "] encountered errors." << std::endl;
   }
-  return DB_QUIT;
+  return DB_SUCCESS;
 }
 
 /**
