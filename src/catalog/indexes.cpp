@@ -47,11 +47,11 @@ uint32_t IndexMetadata::GetSerializedSize() const {
   // magic num
   size += sizeof(uint32_t);
   // index id
-  size += sizeof(index_id_t); // 通常是 4 字节
+  size += sizeof(index_id_t); 
   // index name length + index name string
   size += sizeof(uint32_t) + index_name_.length();
   // table id
-  size += sizeof(table_id_t); // 通常是 4 字节
+  size += sizeof(table_id_t); 
   // key count
   size += sizeof(uint32_t);
   // key mapping in table (each col_index is uint32_t)

@@ -55,7 +55,6 @@ CatalogMeta *CatalogMeta::DeserializeFrom(char *buf) {
  * TODO: Student Implement - Done
  */
 uint32_t CatalogMeta::GetSerializedSize() const {
-  //ASSERT(false, "Not Implemented yet");
   //magic_num + table_count + index_count
   uint32_t size = sizeof(uint32_t) * 3; // MAGIC_NUM, table_meta_pages_.size(), index_meta_pages_.size()
   // table_meta_pages_ (table_id_t + page_id_t)
@@ -108,8 +107,6 @@ CatalogManager::CatalogManager(BufferPoolManager *buffer_pool_manager, LockManag
         next_index_id_.store(catalog_meta_->GetNextIndexId());
 
         // 加载所有表的定义信息
-        // 注意: GetTableMetaPages() 在 catalog.h 中被标记为 "Used only for testing"
-        // 这里假设我们可以使用它来读取元数据信息，或者 CatalogMeta 提供了其他迭代方式
         if (catalog_meta_->GetTableMetaPages() != nullptr) {
           for (const auto &pair : (*catalog_meta_->GetTableMetaPages())) {
             table_id_t table_id = pair.first;
@@ -135,12 +132,10 @@ CatalogManager::CatalogManager(BufferPoolManager *buffer_pool_manager, LockManag
             if (LoadIndex(index_id, index_meta_page_id) != DB_SUCCESS) {
               LOG(WARNING) << "Failed to load metadata for index id: " << index_id
                             << " from page id: " << index_meta_page_id;
-              // 错误处理策略
             }
           }
         }
       }
-//    ASSERT(false, "Not Implemented yet");
 }
 
 CatalogManager::~CatalogManager() {
@@ -203,9 +198,9 @@ dberr_t CatalogManager::CreateTable(const string &table_name, TableSchema *schem
   // If page is null
   if (page_for_meta == nullptr) {
     delete table_meta; // table_meta owns tmp_schema
-    buffer_pool_manager_->UnpinPage(table_heap_root_id, false); // As above
+    buffer_pool_manager_->UnpinPage(table_heap_root_id, false); 
     buffer_pool_manager_->DeletePage(table_heap_root_id);
-    return DB_FAILED; // Line 18
+    return DB_FAILED; 
   }
 
   // Serialize table_meta to the data of page (page_for_meta)
@@ -213,7 +208,7 @@ dberr_t CatalogManager::CreateTable(const string &table_name, TableSchema *schem
   // page_for_meta is now pinned and dirty. It will be unpinned at the end.
 
   // Create the table heap
-  TableHeap *table_heap_obj = nullptr; // 'table' in pseudocode
+  TableHeap *table_heap_obj = nullptr; 
   try {
     table_heap_obj = TableHeap::Create(buffer_pool_manager_, table_heap_root_id, table_meta->GetSchema(), log_manager_, lock_manager_);
   } catch (const std::bad_alloc &) {
@@ -364,13 +359,13 @@ dberr_t CatalogManager::CreateIndex(const std::string &table_name, const string 
   // 从 TableInfo 获取 table_id
   table_id_t table_id = local_table_info->GetTableId();
 
-  // --- 调试建议 1 开始 ---
-  LOG(INFO) << "[CatalogManager::CreateIndex] For index '" << index_name << "' on table '" << table_name << "':";
+  // --- 调试 ---
+  //LOG(INFO) << "[CatalogManager::CreateIndex] For index '" << index_name << "' on table '" << table_name << "':";
   std::string index_keys_str = "  Index Keys (names): ";
   for (const auto& key_name : index_keys) {
     index_keys_str += key_name + " ";
   }
-  LOG(INFO) << index_keys_str;
+  //LOG(INFO) << index_keys_str;
 
   std::vector<uint32_t> key_map; // 这个 key_map 将被用于创建 IndexMetadata
   key_map.reserve(index_keys.size());
@@ -397,8 +392,8 @@ dberr_t CatalogManager::CreateIndex(const std::string &table_name, const string 
   for (uint32_t col_idx : key_map) {
     key_map_str += std::to_string(col_idx) + " ";
   }
-  LOG(INFO) << key_map_str;
-  // --- 调试建议 1 结束 (key_map 生成部分的日志) ---
+  //LOG(INFO) << key_map_str;
+  // --- 调试结束 ---
 
   index_id_t new_index_id = next_index_id_.fetch_add(1);
 
@@ -422,26 +417,18 @@ dberr_t CatalogManager::CreateIndex(const std::string &table_name, const string 
     new_index_info_obj = IndexInfo::Create();
     if (!new_index_info_obj) throw std::bad_alloc();
     
-    new_index_info_obj->Init(index_meta, local_table_info, buffer_pool_manager_); // index_type 参数被移除，因为 IndexInfo::Init 不接受
-    init_succeeded_and_took_ownership = true; // 假设 Init 成功则获取所有权
+    new_index_info_obj->Init(index_meta, local_table_info, buffer_pool_manager_); 
+    init_succeeded_and_took_ownership = true; 
 
     // --- 调试 2 ---
-    // 在 IndexInfo::Init 调用之后检查其结果
-    LOG(INFO) << "[CatalogManager::CreateIndex] After IndexInfo::Init for index '" << new_index_info_obj->GetIndexName() << "':";
+    // 在 IndexInfo::Init 调用之后检查结果
+    //LOG(INFO) << "[CatalogManager::CreateIndex] After IndexInfo::Init for index '" << new_index_info_obj->GetIndexName() << "':";
     IndexSchema* resulting_key_schema = new_index_info_obj->GetIndexKeySchema();
     if (resulting_key_schema == nullptr) {
         LOG(ERROR) << "  IndexInfo::Init resulted in a null key_schema_!";
-        // 如果 key_schema_ 为空，后续操作很可能会失败，这里应该处理这个错误
-        // 例如，清理已创建的资源并返回失败
-        // delete new_index_info_obj; // 它会删除 index_meta (如果 Init 中已赋值)
-        // buffer_pool_manager_->UnpinPage(index_meta_page_id, true);
-        // buffer_pool_manager_->DeletePage(index_meta_page_id);
-        // catalog_meta_->GetIndexMetaPages()->erase(new_index_id); // 如果已经添加了
-        // return DB_FAILED; // 或者更具体的错误码
-        // 为了不改变原函数的结构，这里只打日志，让后续的 ASSERT 或操作失败
     } else {
-        LOG(INFO) << "  Resulting key_schema_ column count: " << resulting_key_schema->GetColumnCount();
-        LOG(INFO) << "  Original key_map size used for IndexMetadata: " << key_map.size();
+        //LOG(INFO) << "  Resulting key_schema_ column count: " << resulting_key_schema->GetColumnCount();
+        //LOG(INFO) << "  Original key_map size used for IndexMetadata: " << key_map.size();
         if (resulting_key_schema->GetColumnCount() != key_map.size()) {
             LOG(ERROR) << "  MISMATCH! key_schema_ column count (" << resulting_key_schema->GetColumnCount()
                        << ") does not match original key_map size (" << key_map.size() << ").";
@@ -488,12 +475,11 @@ dberr_t CatalogManager::CreateIndex(const std::string &table_name, const string 
   // 设置输出参数
   index_info = new_index_info_obj;
 
-  // 14. 持久化目录元数据 (伪代码 Line 57-58)
+  // 持久化目录元数据 
   dberr_t flush_status = FlushCatalogMetaPage();
   if (flush_status != DB_SUCCESS) {
     LOG(ERROR) << "Failed to flush catalog meta page after creating index " << index_name << " on table " << table_name
                << ". Attempting to roll back changes.";
-    // 尝试回滚内存中的更改
     index_names_[table_name].erase(index_name);
     if (index_names_[table_name].empty()) {
       index_names_.erase(table_name);
@@ -633,13 +619,9 @@ dberr_t CatalogManager::DropTable(const string &table_name) {
     if (drop_idx_res != DB_SUCCESS) {
       LOG(ERROR) << "Failed to drop index '" << idx_name_to_drop << "' for table '" << table_name
                  << "' during DropTable. Aborting DropTable partially completed.";
-      // 此处原子性难以保证，除非有DDL事务管理器。
-      // 表现在处于不一致状态，因为某些索引可能已删除，但并非全部。
       return drop_idx_res;
     }
   }
-  // 成功删除所有索引后, index_names_.find(table_name) 应该返回 .end()
-  // 因为 DropIndex 会从 index_names_ 中移除条目，并可能移除 table_name 键本身。
 
   // 获取表堆根页面ID
   // page_id_t table_heap_root_page_id = local_table_info->GetRootPageId();
@@ -785,20 +767,17 @@ dberr_t CatalogManager::FlushCatalogMetaPage() const {
   // 检查 catalog_meta_ 是否已初始化
   if (catalog_meta_ == nullptr) {
     LOG(WARNING) << "FlushCatalogMetaPage called, but catalog_meta_ is null. Catalog might not be initialized.";
-    return DB_FAILED; // 或者一个更具体的错误码，如 DB_CATALOG_NOT_INITIALIZED
+    return DB_FAILED; 
   }
   // 获取目录元数据页
   Page *meta_page = buffer_pool_manager_->FetchPage(CATALOG_META_PAGE_ID);
   // 将目录元数据序列化到页面数据中
   catalog_meta_->SerializeTo(meta_page->GetData());
   // 解除目录元数据页面的锁定，并标记为已修改（脏页）
-  // 这样 BufferPoolManager 知道在适当时机需要将其写回磁盘
   bool unpin_success = buffer_pool_manager_->UnpinPage(CATALOG_META_PAGE_ID, true);
   if (!unpin_success) {
     LOG(ERROR) << "Failed to unpin catalog meta page " << CATALOG_META_PAGE_ID
                << " after marking it dirty. The page might remain pinned, potentially causing issues.";
-    // 这是一个比较严重的问题，因为页面是脏的，但可能没有被正确解除锁定。
-    // BufferPoolManager 最终仍可能将其写回（例如，如果被替换出去），但这并非理想状态。
     return DB_FAILED; // 或者特定的 Unpin 错误码
   }
   return DB_SUCCESS;
@@ -813,7 +792,7 @@ dberr_t CatalogManager::LoadTable(const table_id_t table_id, const page_id_t pag
   if (tables_.count(table_id)) {
     // 表已经被加载，可能是重复调用或逻辑错误
     LOG(WARNING) << "Table with id " << table_id << " already loaded.";
-    return DB_TABLE_ALREADY_EXIST; // 或者根据具体策略，也可以返回 DB_SUCCESS
+    return DB_TABLE_ALREADY_EXIST; 
   }
 
   // 获取包含表元数据的页面
@@ -824,20 +803,20 @@ dberr_t CatalogManager::LoadTable(const table_id_t table_id, const page_id_t pag
   // TableMetadata::DeserializeFrom 会在内部 new TableMetadata
   uint32_t bytes_read = TableMetadata::DeserializeFrom(meta_disk_page->GetData(), table_meta);
   
-  // 反序列化后立即解除页面锁定，标记为非脏页（因为我们只是读取）
+  // 反序列化后立即解除页面锁定，标记为非脏页
   buffer_pool_manager_->UnpinPage(page_id, false /*is_dirty*/);
 
-  if (table_meta == nullptr || bytes_read == 0) { // 假设 bytes_read == 0 也表示失败
+  if (table_meta == nullptr || bytes_read == 0) {
     LOG(ERROR) << "Failed to deserialize TableMetadata from page " << page_id << " for table_id " << table_id;
-    if (table_meta) delete table_meta; // 如果 DeserializeFrom 部分成功但仍需清理
-    return DB_FAILED; // 假设有此错误码
+    if (table_meta) delete table_meta;
+    return DB_FAILED;
   }
   // 验证反序列化得到的 table_id 是否与传入的 table_id 一致
   if (table_meta->GetTableId() != table_id) {
       LOG(ERROR) << "Table ID mismatch after deserializing metadata for table_id " << table_id
                  << ". Expected " << table_id << ", got " << table_meta->GetTableId() << ".";
       delete table_meta;
-      return DB_FAILED; // 或目录损坏错误
+      return DB_FAILED;
   }
 
 
@@ -850,8 +829,7 @@ dberr_t CatalogManager::LoadTable(const table_id_t table_id, const page_id_t pag
   }
 
   // 创建表堆实例
-  // TableHeap::Create 需要 buffer_pool_manager, 表的根页面ID, schema, 以及可选的 log/lock 管理器
-  page_id_t table_heap_root_page_id = table_meta->GetFirstPageId(); // GetFirstPageId() 即 root_page_id_
+  page_id_t table_heap_root_page_id = table_meta->GetFirstPageId();
   TableHeap *table_heap = nullptr;
   try {
     table_heap = TableHeap::Create(buffer_pool_manager_, table_heap_root_page_id, table_schema, log_manager_, lock_manager_);
@@ -860,7 +838,7 @@ dberr_t CatalogManager::LoadTable(const table_id_t table_id, const page_id_t pag
     delete table_meta; // table_meta 尚未被 TableInfo 接管
     return DB_FAILED; // 内存分配失败
   }
-  if (table_heap == nullptr) { // 如果 Create 返回 nullptr 而不是抛异常
+  if (table_heap == nullptr) {
       LOG(ERROR) << "TableHeap::Create returned null for table_id " << table_id;
       delete table_meta;
       return DB_FAILED;
@@ -887,8 +865,6 @@ dberr_t CatalogManager::LoadTable(const table_id_t table_id, const page_id_t pag
 
   // 将表ID和 TableInfo 添加到 tables_ 映射
   tables_.emplace(table_id, new_table_info);
-
-  // 返回成功
   return DB_SUCCESS;
   // ASSERT(false, "Not Implemented yet");
 }
@@ -900,7 +876,7 @@ dberr_t CatalogManager::LoadIndex(const index_id_t index_id, const page_id_t pag
   // 检查索引是否已在内存中的 indexes_ 映射中存在
   if (indexes_.count(index_id)) {
     LOG(WARNING) << "Index with id " << index_id << " already loaded.";
-    return DB_INDEX_ALREADY_EXIST; // 或根据策略返回 DB_SUCCESS
+    return DB_INDEX_ALREADY_EXIST;
   }
 
   // 获取包含索引元数据的页面
@@ -922,7 +898,7 @@ dberr_t CatalogManager::LoadIndex(const index_id_t index_id, const page_id_t pag
       LOG(ERROR) << "Index ID mismatch after deserializing metadata for index_id " << index_id
                  << ". Expected " << index_id << ", got " << index_meta->GetIndexId() << ".";
       delete index_meta;
-      return DB_FAILED; // 或目录损坏错误
+      return DB_FAILED;
   }
 
   // 获取该索引所属的表的 TableInfo
@@ -932,7 +908,7 @@ dberr_t CatalogManager::LoadIndex(const index_id_t index_id, const page_id_t pag
     LOG(ERROR) << "Failed to get TableInfo for table_id " << table_id_for_index 
                << " (referenced by index_id " << index_id << "). Table might not be loaded or catalog is inconsistent.";
     delete index_meta;
-    return DB_TABLE_NOT_EXIST; // 或 DB_FAILED
+    return DB_TABLE_NOT_EXIST;
   }
 
   // 创建 IndexInfo 实例并初始化
@@ -942,22 +918,20 @@ dberr_t CatalogManager::LoadIndex(const index_id_t index_id, const page_id_t pag
     if (!new_index_info) throw std::bad_alloc();
     // IndexInfo::Init 会接管 index_meta 的所有权
     // 并使用 TableInfo 来构建 key_schema，以及 buffer_pool_manager_ 来创建实际的索引结构
-    // 注意：IndexInfo::Init 内部会硬编码 "bptree" 作为索引类型
     new_index_info->Init(index_meta, table_info_for_index, buffer_pool_manager_);
   } catch (const std::bad_alloc &e) {
     LOG(ERROR) << "Failed to allocate IndexInfo for index_id " << index_id << ": " << e.what();
     delete index_meta; // index_meta 未被 IndexInfo 接管
     return DB_FAILED;
-  } catch (...) { // IndexInfo::Init 可能因其他原因失败 (例如，key_schema 创建失败)
+  } catch (...) { 
     LOG(ERROR) << "IndexInfo::Init failed for index_id " << index_id;
-    if (new_index_info) delete new_index_info; // 如果 new_index_info 已分配，其析构函数会处理 index_meta (如果已赋值)
-    else delete index_meta; // 否则，手动删除 index_meta
+    if (new_index_info) delete new_index_info;
+    else delete index_meta;
     return DB_FAILED;
   }
 
 
   // 将索引名和索引ID添加到 index_names_ 映射
-  // index_names_ 是 table_name -> map<index_name, index_id>
   std::string table_name_for_index = table_info_for_index->GetTableName();
   index_names_[table_name_for_index].emplace(index_meta->GetIndexName(), index_id);
 
@@ -977,7 +951,7 @@ dberr_t CatalogManager::GetTable(const table_id_t table_id, TableInfo *&table_in
     return DB_SUCCESS;
   }
   // 未找到具有给定 table_id 的表
-  table_info = nullptr; // 确保输出参数在失败时为 nullptr
+  table_info = nullptr;
   return DB_TABLE_NOT_EXIST;
   // ASSERT(false, "Not Implemented yet");
   return DB_FAILED;
