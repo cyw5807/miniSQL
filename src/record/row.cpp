@@ -12,7 +12,6 @@ uint32_t Row::SerializeTo(char *buf, Schema *schema) const {
   if (field_count == 0) {
     return 0;
   }
-
   ASSERT(schema->GetColumnCount() == field_count, "Field count mismatch with schema.");
 
   char *p = buf; // 使用指针 p 追踪写入位置
@@ -20,8 +19,6 @@ uint32_t Row::SerializeTo(char *buf, Schema *schema) const {
   // 1. 写入 Header: 字段数量
   MACH_WRITE_UINT32(p, field_count);
   p += sizeof(uint32_t);
-
-  // 2. 写入 Header: Null Bitmap
   const uint32_t null_bitmap_size = (field_count + 7) / 8;
   char *bitmap_ptr = p; // 获取 Null Bitmap 的起始地址
   memset(bitmap_ptr, 0, null_bitmap_size); // 初始化 Bitmap 为 0
@@ -43,7 +40,6 @@ uint32_t Row::SerializeTo(char *buf, Schema *schema) const {
     }
   }
 
-  // 返回总共写入的字节数
   return p - buf;
 
 }
