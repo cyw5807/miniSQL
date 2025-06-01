@@ -64,7 +64,7 @@ class IndexInfo {
  * TODO: Student Implement - Done
  */
   void Init(IndexMetadata *meta_data, TableInfo *table_info, BufferPoolManager *buffer_pool_manager) {
-    // Step1: init index metadata and table info
+    // init index metadata and table info
     // IndexInfo takes ownership of the meta_data passed in.
     this->meta_data_ = meta_data;
     if (this->meta_data_ == nullptr || table_info == nullptr || table_info->GetSchema() == nullptr ||
@@ -74,17 +74,16 @@ class IndexInfo {
       return;
     }
 
-    // Step2: mapping index key to key schema
+    // mapping index key to key schema
     this->key_schema_ = Schema::ShallowCopySchema(table_info->GetSchema(), meta_data_->GetKeyMapping());
 
-    // Step3: call CreateIndex to create the index
+    // call CreateIndex to create the index
     if (this->meta_data_ != nullptr && this->key_schema_ != nullptr && buffer_pool_manager != nullptr) {
         std::string index_type_str = "bptree";
         this->index_ = CreateIndex(buffer_pool_manager, index_type_str);
     } else {
         this->index_ = nullptr;
     }
-    //ASSERT(false, "Not Implemented yet.");
   }
 
   inline Index *GetIndex() { return index_; }
