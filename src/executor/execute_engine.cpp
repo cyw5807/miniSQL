@@ -474,28 +474,21 @@ dberr_t ExecuteEngine::ExecuteCreateTable(pSyntaxNode ast, ExecuteContext *conte
       }
 
       // 解析列级约束 (UNIQUE, NOT NULL)
-      pSyntaxNode constraint_ptr = col_type_node->next_;
-      while (constraint_ptr != nullptr) {
-          // 约束是 kNodeIdentifier，其 val_ 是 "UNIQUE" 或 "NOTNULL" (或 "NOT" 后跟 "NULL")
-          if (constraint_ptr->type_ == kNodeIdentifier && constraint_ptr->val_ != nullptr) {
-              std::string constraint_val(constraint_ptr->val_);
-              std::transform(constraint_val.begin(), constraint_val.end(), constraint_val.begin(), ::tolower);
-              if (constraint_val == "unique") {
-                  pci.is_unique_from_col_def = true;
-              } else if (constraint_val == "not" && constraint_ptr->next_ &&
-                         constraint_ptr->next_->type_ == kNodeIdentifier && constraint_ptr->next_->val_) {
-                  std::string next_val(constraint_ptr->next_->val_);
-                  std::transform(next_val.begin(), next_val.end(), next_val.begin(), ::tolower);
-                  if (next_val == "null") {
-                      pci.is_not_null_from_col_def = true;
-                      constraint_ptr = constraint_ptr->next_;
-                  }
-              }
+      // 约束是 current_item_node,其 val_ 是 "UNIQUE" 或 "NOTNULL" (或 "NOT" 后跟 "NULL")
+      if (current_item_node->val_ != nullptr) {
+          std::string constraint_val(current_item_node->val_);
+          std::transform(constraint_val.begin(), constraint_val.end(), constraint_val.begin(), ::tolower);
+          LOG(INFO) << "constrain detect start!";
+          if (constraint_val == "unique") {
+              pci.is_unique_from_col_def = true;
+              LOG(INFO) << "unique constrain detected!";
+          } else if (constraint_val == "not null" ) {
+              std::string next_val(current_item_node->val_);
+              std::transform(next_val.begin(), next_val.end(), next_val.begin(), ::tolower);
+              pci.is_not_null_from_col_def = true;
           }
-          constraint_ptr = constraint_ptr->next_;
       }
       parsed_col_definitions.push_back(pci);
-
     } else if (current_item_node->type_ == kNodeColumnList) {
       // 假设在 kNodeColumnDefinitionList 中，如果出现 kNodeColumnList 类型的节点，它就代表 PRIMARY KEY (...) 子句。
       if (!pk_column_names_from_ast.empty()) { // 只允许一个主键定义
