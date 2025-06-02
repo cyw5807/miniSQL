@@ -25,7 +25,7 @@ bool UpdateExecutor::Next([[maybe_unused]] Row *row, RowId *rid) {
         dest_row.GetKeyFromRow(table_info_->GetSchema(), info->GetIndexKeySchema(), key_row);
         std::vector<RowId> result;
         if (!key_row.GetFields().empty() &&
-            info->GetIndex()->ScanKey(key_row, result, exec_ctx_->GetTransaction()) == DB_SUCCESS) {
+            info->GetIndex()->ScanKey(key_row, result, exec_ctx_->GetTransaction()) == DB_SUCCESS) { //update
             if(result.size() == 1 && result.at(0) == src_rid){}
             else {
               std::cout << "key already exists" << std::endl;
