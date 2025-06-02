@@ -58,6 +58,9 @@ class UpdateStatement : public AbstractStatement {
     }
     auto col_type = schema->GetColumn(index)->GetType();
     auto const_expr = MakeConstantValueExpression(col_type, value);
+    if(col_type == kTypeChar && strlen(value->val_) > schema->GetColumn(index)->GetLength()){ //update
+      throw std::logic_error("Char value exceed the upper limit");
+    }
     update_attrs[index] = const_expr;
   }
 

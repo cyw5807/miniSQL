@@ -140,7 +140,7 @@ void BPlusTree::StartNewTree(GenericKey *key, const RowId &value) {
   }
   root_page_id_ = new_page_id;
   auto *node = reinterpret_cast<BPlusTreeLeafPage *>(page);
-  node->Init(root_page_id_, INVALID_PAGE_ID, processor_.GetKeySize(), 5); // testing
+  node->Init(root_page_id_, INVALID_PAGE_ID, processor_.GetKeySize(), 50); // testing
   node->Insert(key, value, processor_);
   buffer_pool_manager_->UnpinPage(root_page_id_, true);
   UpdateRootPageId();

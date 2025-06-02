@@ -51,8 +51,8 @@ class InsertStatement : public AbstractStatement {
         value.emplace_back(std::make_shared<ConstantValueExpression>(*f));
         delete f;
       } else {
-        if(column->GetType() == kTypeChar && strlen(ast->val_) > column->GetLength()){
-          throw std::logic_error("The inserted value does not match the schema");
+        if(column->GetType() == kTypeChar && strlen(ast->val_) > column->GetLength()){ //update
+          throw std::logic_error("Char value exceed the upper limit");
         }
         value.emplace_back(MakeConstantValueExpression(column->GetType(), ast));
       }
