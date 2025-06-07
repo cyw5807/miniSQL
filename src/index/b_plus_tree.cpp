@@ -833,29 +833,6 @@ IndexIterator BPlusTree::Begin(const GenericKey *key) {
  * @return : index iterator
  */
 IndexIterator BPlusTree::End() {
-  // if (IsEmpty()) {
-  //   return IndexIterator(); // 空树直接返回空迭代器
-  // }
-
-  // page_id_t current_page_id = root_page_id_;
-
-  // while (true) {
-  //   Page *page = buffer_pool_manager_->FetchPage(current_page_id);
-  //   BPlusTreePage *current_page = reinterpret_cast<BPlusTreePage *>(page);
-
-  //   if (current_page->IsLeafPage()) {
-  //     LeafPage *leaf_page = reinterpret_cast<LeafPage *>(current_page);
-  //     // 找到最后一个 key 的下一个位置（即 end）
-  //     buffer_pool_manager_->UnpinPage(current_page_id, false);
-  //     int index = leaf_page->GetSize(); // 超出范围，表示 end
-  //     return IndexIterator(leaf_page->GetPageId(), buffer_pool_manager_, index);
-  //   } else {
-  //     auto *internal_page = reinterpret_cast<BPlusTreeInternalPage *>(current_page);
-  //     page_id_t next_page_id = internal_page->ValueAt(internal_page->GetSize() - 1);
-  //     buffer_pool_manager_->UnpinPage(current_page_id, false);
-  //     current_page_id = next_page_id;
-  //   }
-  // }
   return IndexIterator(INVALID_PAGE_ID, buffer_pool_manager_, -1);
 }
 
